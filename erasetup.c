@@ -33,6 +33,7 @@ static struct option long_options[] = {
 
 // era superblock
 static struct era_superblock *sb = NULL; // on disk
+//static md;
 
 // print usage and exit
 static void usage(int code)
@@ -156,42 +157,36 @@ static int sbdump(const char *name, int argc, char **argv)
 	if (check_era_sb(name) && !force)
 		return -1;
 
-	printf("checksum:            0x%08X\n",
+	printf("checksum:                    0x%08X\n",
 	       le32toh(sb->csum));
-	printf("flags:               0x%08X\n",
+	printf("flags:                       0x%08X\n",
 	       le32toh(sb->flags));
-	printf("blocknr:             %llu\n",
+	printf("blocknr:                     %llu\n",
 	       (unsigned long long)le64toh(sb->blocknr));
-	printf("uuid:                %s\n",
+	printf("uuid:                        %s\n",
 	       uuid2str(sb->uuid));
-	printf("magic:               %llu\n",
+	printf("magic:                       %llu\n",
 	       (unsigned long long)le64toh(sb->magic));
-	printf("version:             %u\n",
+	printf("version:                     %u\n",
 	       le32toh(sb->version));
-	printf("data block size:     %u sectors\n",
+	printf("data block size:             %u sectors\n",
 	       le32toh(sb->data_block_size));
-	printf("metadata block size: %u sectors\n",
+	printf("metadata block size:         %u sectors\n",
 	       le32toh(sb->metadata_block_size));
-	printf("total data blocks:   %u\n",
+	printf("total data blocks:           %u\n",
 	       le32toh(sb->nr_blocks));
-	printf("current era:         %u\n",
+	printf("current era:                 %u\n",
 	       le32toh(sb->current_era));
-	printf("metadata snapshot:   %llu\n",
+	printf("current writeset/total bits: %u\n",
+	       le32toh(sb->current_writeset.nr_bits));
+	printf("current writeset/root:       %llu\n",
+	       (unsigned long long)le64toh(sb->current_writeset.root));
+	printf("writeset tree root:          %llu\n",
+	       (unsigned long long)le64toh(sb->writeset_tree_root));
+	printf("era array root:              %llu\n",
+	       (unsigned long long)le64toh(sb->era_array_root));
+	printf("metadata snapshot:           %llu\n",
 	       (unsigned long long)le64toh(sb->metadata_snap));
-
-
-	sb->uuid[0] = 'a';
-	sb->uuid[1] = 'b';
-	sb->uuid[2] = 0xFF;
-
-	sb->csum = htole32(crc_update(0xffffffff, &sb->flags,
-		MD_BLOCK_SIZE - sizeof(sb->csum)) ^ SUPERBLOCK_CSUM_XOR);
-
-//	{
-//		int fd = open(argv[0], O_WRONLY | O_DIRECT);
-//		pwrite(fd, sb, MD_BLOCK_SIZE, 0);
-//		close(fd);
-//	}
 
 	return 0;
 }
