@@ -18,32 +18,32 @@
 #define UUID_LEN 16
 
 struct era_writeset {
-	uint32_t nr_bits;
-	uint64_t root;
+	__le32 nr_bits;
+	__le64 root;
 } __attribute__ ((packed));
 
 struct era_superblock {
-	uint32_t csum;
-	uint32_t flags;
-	uint64_t blocknr;
+	__le32 csum;
+	__le32 flags;
+	__le64 blocknr;
 
 	__u8 uuid[UUID_LEN];
-	uint64_t magic;
-	uint32_t version;
+	__le64 magic;
+	__le32 version;
 
 	__u8 metadata_space_map_root[SPACE_MAP_ROOT_SIZE];
 
-	uint32_t data_block_size;
-	uint32_t metadata_block_size;
-	uint32_t nr_blocks;
+	__le32 data_block_size;
+	__le32 metadata_block_size;
+	__le32 nr_blocks;
 
-	uint32_t current_era;
+	__le32 current_era;
 	struct era_writeset current_writeset;
 
-	uint64_t writeset_tree_root;
-	uint64_t era_array_root;
+	__le64 writeset_tree_root;
+	__le64 era_array_root;
 
-	uint64_t metadata_snap;
+	__le64 metadata_snap;
 } __attribute__ ((packed));
 
 #endif

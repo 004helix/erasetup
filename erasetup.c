@@ -16,8 +16,10 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#include "erasetup.h"
 #include "crc32c.h"
+#include "era.h"
+#include "era_md.h"
+#include "era_btree.h"
 
 // options
 static int verbose = 0;
@@ -30,10 +32,6 @@ static struct option long_options[] = {
 	{ "force",   no_argument, NULL, 'f' },
 	{ NULL,      0,           NULL, 0   }
 };
-
-// era superblock
-static struct era_superblock *sb = NULL; // on disk
-//static md;
 
 // print usage and exit
 static void usage(int code)
@@ -60,101 +58,55 @@ static char *uuid2str(const void *uuid)
 }
 
 // check era superblock
-static int check_era_sb(const char *name)
+static int sb_check(struct era_superblock *sb)
 {
-	uint32_t csum;
 	uint32_t magic;
 	uint32_t version;
 
 	magic = le32toh(sb->magic);
 	if (magic != SUPERBLOCK_MAGIC)
 	{
-		if (name)
-			fprintf(stderr,
-			        "%s: invalid superblock magic\n", name);
-		return -1;
-	}
-
-	csum = crc_update(0xffffffff, &sb->flags,
-		          MD_BLOCK_SIZE - sizeof(csum)) ^ SUPERBLOCK_CSUM_XOR;
-
-	if (csum != le32toh(sb->csum))
-	{
-		if (name)
-			fprintf(stderr,
-			        "%s: invalid superblock checksum\n", name);
+		fprintf(stderr, "invalid superblock magic\n");
 		return -1;
 	}
 
 	version = le32toh(sb->version);
 	if (version < MIN_ERA_VERSION || version > MAX_ERA_VERSION)
 	{
-		if (name)
-			fprintf(stderr,
-			        "%s: unsupperted era version\n", name);
+		fprintf(stderr, "unsupported era version: %d\n", version);
 		return -1;
 	}
-
-	return 0;
-}
-
-// read era superblock from device
-static int read_era_sb(const char *device)
-{
-	int fd = open(device, O_RDONLY | O_DIRECT);
-
-	if (fd == -1)
-	{
-		fprintf(stderr, "Unable to open metadata device: %s\n",
-		        strerror(errno));
-		return -1;
-	}
-
-	if (sb == NULL)
-	{
-		sb = mmap(NULL, MD_BLOCK_SIZE, PROT_READ | PROT_WRITE,
-		          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-		if (sb == MAP_FAILED)
-		{
-			sb = NULL;
-			fprintf(stderr, "Not enough memory\n");
-			close(fd);
-			return -1;
-		}
-	}
-
-	if (pread(fd, sb, MD_BLOCK_SIZE, 0) != MD_BLOCK_SIZE)
-	{
-		fprintf(stderr, "Unable to read metadata device: %s\n",
-		        strerror(errno));
-		close(fd);
-		return -1;
-	}
-
-	close(fd);
 
 	return 0;
 }
 
 // check and print superblock records
-static int sbdump(const char *name, int argc, char **argv)
+static int sbdump(int argc, char **argv)
 {
+	struct era_superblock *sb;
+	struct md *md;
+
 	if (argc == 0)
 	{
-		fprintf(stderr, "%s: metadata device required\n", name);
+		fprintf(stderr, "metadata device required\n");
 		usage(1);
 	}
 
 	if (argc > 1)
 	{
-		fprintf(stderr, "%s: unknown argument: %s\n", name, argv[1]);
+		fprintf(stderr, "unknown argument: %s\n", argv[1]);
 		usage(1);
 	}
 
-	if (read_era_sb(argv[0]))
+	md = md_open(argv[0]);
+	if (md == NULL)
 		return -1;
 
-	if (check_era_sb(name) && !force)
+	sb = md_block(md, 0, CACHED, SUPERBLOCK_CSUM_XOR);
+	if (sb == NULL)
+		return -1;
+
+	if (sb_check(sb) && !force)
 		return -1;
 
 	printf("checksum:                    0x%08X\n",
@@ -187,6 +139,8 @@ static int sbdump(const char *name, int argc, char **argv)
 	       (unsigned long long)le64toh(sb->era_array_root));
 	printf("metadata snapshot:           %llu\n",
 	       (unsigned long long)le64toh(sb->metadata_snap));
+
+	era_array_walk(md);
 
 	return 0;
 }
@@ -223,7 +177,7 @@ int main(int argc, char **argv)
 	optind++;
 
 	if (!strcmp(cmd, "sbdump"))
-		return sbdump(argv[0], argc - optind, &argv[optind]) ? 1 : 0;
+		return sbdump(argc - optind, &argv[optind]) ? 1 : 0;
 
 	fprintf(stderr, "%s: unknown command: %s\n", argv[0], cmd);
 	usage(1);
