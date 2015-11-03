@@ -6,13 +6,23 @@
 #define _ERASETUP_H
 #include <linux/types.h>
 #include <stdint.h>
+#include <stdio.h>
+
+#define SECTOR_SIZE 512
+#define UUID_PREFIX "ERA-"
+#define TARGET_NAME "era"
+
+extern void *empty_block;
+extern int verbose;
+extern int force;
+
+char *uuid2str(const void *uuid);
+void usage(FILE *out, int code);
 
 #define SUPERBLOCK_MAGIC 2126579579
 #define SUPERBLOCK_CSUM_XOR 146538381
 #define MIN_ERA_VERSION 1
 #define MAX_ERA_VERSION 1
-
-#define MD_BLOCK_SIZE 4096
 
 #define SPACE_MAP_ROOT_SIZE 128
 #define UUID_LEN 16
