@@ -3,7 +3,7 @@
  */
 
 #ifndef __ERA_CMD_CREATE_H__
-#define __ERA_CMD_CREATE___
+#define __ERA_CMD_CREATE_H__
 
 #define RANDOM_DEVICE "/dev/urandom"
 

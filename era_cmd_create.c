@@ -19,6 +19,7 @@
 
 #include "era.h"
 #include "era_md.h"
+#include "era_dm.h"
 #include "era_cmd_create.h"
 
 #include <libdevmapper.h>
@@ -118,39 +119,6 @@ static int uuid_init(void)
 	close(fd);
 
 	return 0;
-}
-
-static int era_dm_create(const char *name, const char *uuid,
-		         uint64_t size, const char *table)
-{
-	struct dm_task *dmt;
-	uint32_t cookie = 0;
-	int rc;
-
-	if (!(dmt = dm_task_create(DM_DEVICE_CREATE)))
-		return -1;
-
-	if (!dm_task_set_name(dmt, name))
-		goto out;
-
-	if (!dm_task_set_uuid(dmt, uuid))
-		goto out;
-
-	if (!dm_task_add_target(dmt, 0, size, TARGET_NAME, table))
-		goto out;
-
-	if (!dm_task_set_cookie(dmt, &cookie, 0))
-		goto out;
-
-	rc = dm_task_run(dmt);
-
-	(void)dm_udev_wait(cookie);
-
-	dm_task_destroy(dmt);
-	return rc ? 0 : -1;
-out:
-	dm_task_destroy(dmt);
-	return -1;
 }
 
 int era_create(int argc, char **argv)
@@ -282,12 +250,13 @@ int era_create(int argc, char **argv)
 	snprintf(table, sizeof(table), "%d:%d %d:%d %d",
 	         md->major, md->minor, maj, min, chunk);
 
-	if (era_dm_create(nametmp, uuidstr, dev_sectors, table))
+	if (era_dm_create(nametmp, uuidstr, dev_sectors,
+	                  TARGET_ERA, table) == -1)
 	{
 		md_close(md);
 		return -1;
 	}
 
 	md_close(md);
-	return -1;
+	return 0;
 }

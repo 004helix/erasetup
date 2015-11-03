@@ -20,12 +20,11 @@
 
 #include "era.h"
 #include "era_md.h"
+#include "era_dm.h"
 #include "era_dump.h"
 #include "era_btree.h"
 
 #include "era_cmd_create.h"
-
-#include <libdevmapper.h>
 
 // verbose printf macro
 #define printvf(v, f, ...) \
@@ -243,7 +242,7 @@ int main(int argc, char **argv)
 	}
 
 	// init libraries
-	dm_set_uuid_prefix(UUID_PREFIX);
+	era_dm_init();
 
 	// execute command
 	cmd = argv[optind];

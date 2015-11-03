@@ -9,8 +9,12 @@
 #include <stdio.h>
 
 #define SECTOR_SIZE 512
-#define UUID_PREFIX "ERA-"
-#define TARGET_NAME "era"
+
+#define UUID_PREFIX     "ERA-"
+#define TARGET_ERA      "era"
+#define TARGET_LINEAR   "linear"
+#define TARGET_SNAPSHOT "snapshot"
+#define TARGET_ORIGIN   "snapshot-origin"
 
 extern void *empty_block;
 extern int verbose;
