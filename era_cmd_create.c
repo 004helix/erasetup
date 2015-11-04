@@ -17,6 +17,7 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#include "crc32c.h"
 #include "era.h"
 #include "era_md.h"
 #include "era_dm.h"
@@ -178,12 +179,26 @@ int era_create(int argc, char **argv)
 		return -1;
 	}
 
-	if (!force && le32toh(sb->magic) == SUPERBLOCK_MAGIC)
+	if (le32toh(sb->magic) == SUPERBLOCK_MAGIC)
 	{
-		fprintf(stderr, "existing superblock found on %s\n"
+		uint32_t csum;
+
+		csum = crc_update(0xffffffff, &sb->flags,
+		                  MD_BLOCK_SIZE - sizeof(uint32_t));
+		csum ^= SUPERBLOCK_CSUM_XOR;
+
+		/* TODO TODO TODO */
+		if (le32toh(sb->csum) == csum)
+		{
+
+		/*
+		fprintf(stderr, "valid superblock found on %s\n"
 		        "  use --force to ignore this check\n", meta);
 		md_close(md);
 		return -1;
+		*/
+
+		}
 	}
 
 	if (!force && memcmp(sb, empty_block, MD_BLOCK_SIZE))
@@ -242,10 +257,11 @@ int era_create(int argc, char **argv)
 
 	dev_sectors = dev_size / SECTOR_SIZE;
 
-	snprintf(nametmp, sizeof(nametmp), "erasetup-%s", uuid2str(uuid));
-
-	snprintf(uuidstr, sizeof(uuidstr), "%s%s-tmp", UUID_PREFIX,
+	snprintf(nametmp, sizeof(nametmp), "erasetup-%s",
 	         uuid2str(uuid));
+
+	snprintf(uuidstr, sizeof(uuidstr), "%s%s-tmp",
+	         UUID_PREFIX, uuid2str(uuid));
 
 	snprintf(table, sizeof(table), "%d:%d %d:%d %d",
 	         md->major, md->minor, maj, min, chunk);

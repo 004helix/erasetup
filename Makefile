@@ -1,32 +1,22 @@
 CC = gcc
+LD = gcc
 CFLAGS = -Wall
-LDFLAGS = -ldevmapper
 #CFLAGS = -Wall -Werror
+LDFLAGS = -ldevmapper
 
-erasetup: crc32c.o era_md.o era_dm.o era_dump.o \
-          era_btree.o era_cmd_create.o erasetup.o
-	$(CC) -o $@ $^ $(LDFLAGS)
+EXE = erasetup
+SRC = $(wildcard *.c)
+OBJ = $(patsubst %.c,build/%.o,$(SRC))
 
-crc32c.o: crc32c.h crc32c.c
-	$(CC) $(CFLAGS) -c crc32c.c
+$(EXE): $(OBJ)
+	$(LD) -o $@ $^ $(LDFLAGS)
 
-era_md.o: crc32c.h era.h era_md.h era_md.c
-	$(CC) $(CFLAGS) -c era_md.c
+-include $(OBJ:.o=.d)
 
-era_dm.o: era.h era_dm.h era_dm.c
-	$(CC) $(CFLAGS) -c era_dm.c
-
-era_dump.o: crc32c.h era.h era_dump.h era_dump.c
-	$(CC) $(CFLAGS) -c era_dump.c
-
-era_btree.o: era.h era_md.h era_dump.h era_btree.h era_btree.c
-	$(CC) $(CFLAGS) -c era_btree.c
-
-era_cmd_create.o: era.h era_md.h era_cmd_create.h era_cmd_create.c
-	$(CC) $(CFLAGS) -c era_cmd_create.c
-
-erasetup.o: crc32c.h era.h era_md.h era_dm.h era_dump.h era_btree.h erasetup.c
-	$(CC) $(CFLAGS) -c erasetup.c
+$(OBJ): build/%.o : %.c
+	$(CC) $(CFLAGS) -c $< -o build/$*.o
+	@$(CC) $(CFLAGS) -MM $< -MF build/$*.d
+	@sed -i build/$*.d -e 's,\($*\)\.o[ :]*,build/\1.o: ,g'
 
 clean:
-	rm -f erasetup *.o
+	rm -rf $(EXE) build/*.o build/*.d

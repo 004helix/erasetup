@@ -232,7 +232,7 @@ int main(int argc, char **argv)
 	if (optind == argc)
 		usage(stdout, 0);
 
-	// init variables
+	// init empty block
 	empty_block = mmap(NULL, MD_BLOCK_SIZE, PROT_READ,
 	                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (empty_block == MAP_FAILED)
@@ -241,7 +241,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	// init libraries
+	// init device mapper
 	era_dm_init();
 
 	// execute command

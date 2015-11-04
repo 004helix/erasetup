@@ -1,3 +1,4 @@
 erasetup
+build/*.o
+build/*.d
 loop0.*
-*.o
