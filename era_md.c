@@ -23,8 +23,8 @@
 // open metadata device
 struct md *md_open(const char *device)
 {
-	unsigned dev_blocks;
-	uint64_t dev_size;
+	unsigned blocks;
+	uint64_t size;
 	struct stat st;
 	struct md *md;
 	int fd;
@@ -52,7 +52,7 @@ struct md *md_open(const char *device)
 		return NULL;
 	}
 
-	if (ioctl(fd, BLKGETSIZE64, &dev_size))
+	if (ioctl(fd, BLKGETSIZE64, &size))
 	{
 		fprintf(stderr, "can't get device size: %s\n",
 		        strerror(errno));
@@ -60,9 +60,9 @@ struct md *md_open(const char *device)
 		return NULL;
 	}
 
-	dev_blocks = dev_size / MD_BLOCK_SIZE;
+	blocks = size / MD_BLOCK_SIZE;
 
-	md = malloc(sizeof(struct md) + sizeof(unsigned) * dev_blocks);
+	md = malloc(sizeof(struct md) + sizeof(unsigned) * blocks);
 	if (md == NULL)
 	{
 		fprintf(stderr, "not enough memory\n");
@@ -94,8 +94,8 @@ struct md *md_open(const char *device)
 	md->fd = fd;
 	md->major = major(st.st_rdev);
 	md->minor = minor(st.st_rdev);
-	md->dev_size = dev_size;
-	md->dev_blocks = dev_blocks;
+	md->size = size;
+	md->blocks = blocks;
 	md->cache_blocks = 2;
 	md->cache_used = 2;
 
@@ -194,7 +194,7 @@ void md_flush(struct md *md)
 	{
 		md->cache_used = 0;
 		memset(md->cache_offset, 0xff,
-		       sizeof(unsigned) * md->dev_blocks);
+		       sizeof(unsigned) * md->blocks);
 	}
 }
 

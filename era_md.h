@@ -26,13 +26,15 @@ struct generic_node {
  * metadata device
  */
 struct md {
+	int       fd;              /* device fd                */
+	unsigned  major;           /* device major number      */
+	unsigned  minor;           /* device minor number      */
+	unsigned  blocks;          /* device size / block size */
+	uint64_t  size;            /* device size in bytes     */
+
 	void     *buffer;          /* block read buffer        */
 	void     *cache;           /* blocks cache             */
-	int       fd;              /* device fd                */
-	int       major;           /* device major number      */
-	int       minor;           /* device minor number      */
-	uint64_t  dev_size;        /* device size in bytes     */
-	unsigned  dev_blocks;      /* device size / block size */
+
 	unsigned  cache_blocks;    /* allocated cache blocks   */
 	unsigned  cache_used;      /* user cache blocks        */
 	unsigned  cache_offset[0]; /* block offsets in data    */

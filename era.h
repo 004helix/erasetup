@@ -60,4 +60,6 @@ struct era_superblock {
 	__le64 metadata_snap;
 } __attribute__ ((packed));
 
+int era_sb_check(struct era_superblock *sb);
+
 #endif

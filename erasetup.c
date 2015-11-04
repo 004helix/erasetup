@@ -24,7 +24,7 @@
 #include "era_dump.h"
 #include "era_btree.h"
 
-#include "era_cmd_create.h"
+#include "era_cmd_basic.h"
 
 // verbose printf macro
 #define printvf(v, f, ...) \
@@ -56,8 +56,9 @@ void usage(FILE *out, int code)
 	"erasetup [-h|--help] [-v|--verbose] [-f|--force]\n"
 	"         <command> [command options]\n\n"
 	"         dump <metadata-dev>\n"
-	"         create <dev-name> <metadata-dev> <data-dev> [chunk-size]\n"
-	"         open <dev-name> <metadata-dev> <data-dev>\n"
+	"         create <name> <metadata-dev> <data-dev> [chunk-size]\n"
+	"         open <name> <metadata-dev> <data-dev>\n"
+	"         close <name>\n"
 	"\n");
 	exit(code);
 }
@@ -81,7 +82,7 @@ char *uuid2str(const void *uuid)
 }
 
 // check era superblock
-static int era_sb_check(struct era_superblock *sb)
+int era_sb_check(struct era_superblock *sb)
 {
 	uint32_t magic;
 	uint32_t version;
@@ -253,6 +254,9 @@ int main(int argc, char **argv)
 
 	if (!strcmp(cmd, "create"))
 		return era_create(argc - optind, &argv[optind]) ? 1 : 0;
+
+	if (!strcmp(cmd, "open"))
+		return era_open(argc - optind, &argv[optind]) ? 1 : 0;
 
 	fprintf(stderr, "%s: unknown command: %s\n", argv[0], cmd);
 	usage(stderr, 1);
