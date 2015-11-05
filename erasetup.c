@@ -21,10 +21,10 @@
 #include "era.h"
 #include "era_md.h"
 #include "era_dm.h"
-#include "era_dump.h"
 #include "era_btree.h"
 
 #include "era_cmd_basic.h"
+#include "era_cmd_dumpsb.h"
 
 // verbose printf macro
 #define printvf(v, f, ...) \
@@ -55,7 +55,7 @@ void usage(FILE *out, int code)
 	fprintf(out, "Usage:\n\n"
 	"erasetup [-h|--help] [-v|--verbose] [-f|--force]\n"
 	"         <command> [command options]\n\n"
-	"         dump <metadata-dev>\n"
+	"         dumpsb <metadata-dev>\n"
 	"         create <name> <metadata-dev> <data-dev> [chunk-size]\n"
 	"         open <name> <metadata-dev> <data-dev>\n"
 	"         close <name>\n"
@@ -100,105 +100,6 @@ int era_sb_check(struct era_superblock *sb)
 		fprintf(stderr, "unsupported era version: %d\n", version);
 		return -1;
 	}
-
-	return 0;
-}
-
-// check and print superblock, dump era_array
-static int era_dump(int argc, char **argv)
-{
-	struct era_superblock *sb;
-	struct dump *dump;
-	struct md *md;
-
-	if (argc == 0)
-	{
-		fprintf(stderr, "metadata device argument expected\n");
-		usage(stderr, 1);
-	}
-
-	if (argc > 1)
-	{
-		fprintf(stderr, "unknown argument: %s\n", argv[1]);
-		usage(stderr, 1);
-	}
-
-	md = md_open(argv[0]);
-	if (md == NULL)
-		return -1;
-
-	sb = md_block(md, MD_CACHED, 0, SUPERBLOCK_CSUM_XOR);
-	if (sb == NULL)
-		return -1;
-
-	if (era_sb_check(sb) && !force)
-		return -1;
-
-	printvf(1, "checksum:                    0x%08X\n",
-	           le32toh(sb->csum));
-	printvf(1, "flags:                       0x%08X\n",
-	           le32toh(sb->flags));
-	printvf(1, "blocknr:                     %llu\n",
-	           (long long unsigned)le64toh(sb->blocknr));
-	printvf(0, "uuid:                        %s\n",
-	           uuid2str(sb->uuid));
-	printvf(1, "magic:                       %llu\n",
-	           (long long unsigned)le64toh(sb->magic));
-	printvf(1, "version:                     %u\n",
-	           le32toh(sb->version));
-	printvf(0, "data block size:             %u sectors\n",
-	           le32toh(sb->data_block_size));
-	printvf(0, "metadata block size:         %u sectors\n",
-	           le32toh(sb->metadata_block_size));
-	printvf(0, "total data blocks:           %u\n",
-	           le32toh(sb->nr_blocks));
-	printvf(0, "current era:                 %u\n",
-	           le32toh(sb->current_era));
-	printvf(1, "current writeset/total bits: %u\n",
-	           le32toh(sb->current_writeset.nr_bits));
-	printvf(1, "current writeset/root:       %llu\n",
-	           (long long unsigned)le64toh(sb->current_writeset.root));
-	printvf(1, "writeset tree root:          %llu\n",
-	           (long long unsigned)le64toh(sb->writeset_tree_root));
-	printvf(1, "era array root:              %llu\n",
-	           (long long unsigned)le64toh(sb->era_array_root));
-	printvf(0, "metadata snapshot:           %llu\n",
-	           (long long unsigned)le64toh(sb->metadata_snap));
-
-	if (argc == 2)
-	{
-		int i;
-
-		dump = dump_open(argv[1], le32toh(sb->nr_blocks));
-		if (dump == NULL)
-			return -1;
-
-		if (era_array_dump(md, dump) == -1)
-			return -1;
-
-		// ----------------
-		if (sb->current_writeset.root != 0)
-		{
-
-		if (era_bitset_dump(md, dump) == -1)
-			return -1;
-
-		for (i = 0; i < dump->max_bs_ents; i++)
-		{
-			if (i && (i + 1) % 4 == 0)
-				printf("%016llx\n", (long long unsigned)htobe64(dump->bitset[i]));
-			else
-				printf("%016llx ", (long long unsigned)htobe64(dump->bitset[i]));
-		}
-		if ((dump->max_bs_ents + 1) % 4 == 0)
-			printf("\n");
-
-		} // ------------
-
-		dump_close(dump);
-	}
-
-	md_close(md);
 
 	return 0;
 }
@@ -249,8 +150,8 @@ int main(int argc, char **argv)
 	cmd = argv[optind];
 	optind++;
 
-	if (!strcmp(cmd, "dump"))
-		return era_dump(argc - optind, &argv[optind]) ? 1 : 0;
+	if (!strcmp(cmd, "dumpsb"))
+		return era_dumpsb(argc - optind, &argv[optind]) ? 1 : 0;
 
 	if (!strcmp(cmd, "create"))
 		return era_create(argc - optind, &argv[optind]) ? 1 : 0;

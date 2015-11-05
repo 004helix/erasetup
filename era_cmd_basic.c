@@ -163,14 +163,10 @@ static int clear_metadata(struct md *md, const char *device)
 		else
 			what = "existing data";
 
-		fprintf(stderr, "%s found on %s\n use --force "
-		        "to ignore this check\n", what, device);
+		fprintf(stderr, "%s found on %s\n", what, device);
 
-		md_flush(md);
 		return -1;
 	}
-
-	md_flush(md);
 
 	if (md_write(md, 0, empty_block))
 		return -1;
@@ -439,10 +435,9 @@ int era_open(int argc, char **argv)
 	if (!force && chunks != (unsigned)blocks)
 	{
 		fprintf(stderr, "can't open era device: data device resized\n"
-		                " chunk size: %i bytes\n"
-		                " total chunks: %u\n"
-		                " chunks on %s: %u\n"
-		                "  use --force to ignore this check\n",
+		                "  chunk size: %i bytes\n"
+		                "  total chunks: %u\n"
+		                "  chunks on %s: %u\n",
 		                chunk * SECTOR_SIZE, (unsigned)blocks,
 		                data, chunks);
 		goto out;

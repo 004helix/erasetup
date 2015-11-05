@@ -8,18 +8,12 @@
 /*
  * leaf types
  */
-#define LEAF_ARRAY 0
-#define LEAF_BITSET 1
-#define LEAF_WRITESET 2
+enum leaf_type {
+	LEAF_ARRAY = 1,
+	LEAF_BITSET = 2,
+	LEAF_WRITESET = 3
+};
 
-/*
- * key size
- */
-#define BTREE_KEY_SIZE 8
-
-/*
- * checksum
- */
 #define BTREE_CSUM_XOR 121107
 #define ARRAY_CSUM_XOR 595846735
 
@@ -54,13 +48,16 @@ struct array_header {
 
 struct array_node {
 	struct array_header header;
-	union {
-		__le32 values32[0];
-		__le64 values64[0];
-	};
+	__u8 values[0];
 } __attribute__ ((packed));
 
-int era_array_dump(struct md *md, struct dump *dump);
-int era_bitset_dump(struct md *md, struct dump *dump);
+int era_array_walk(struct md *md,
+                   int (*cb)(unsigned size, void *keys, void *values));
+
+int era_bitset_walk(struct md *md, uint64_t root,
+                    int (*cb)(unsigned size, void *keys, void *values));
+
+int era_writeset_walk(struct md *md,
+                      int (*cb)(unsigned size, void *keys, void *values));
 
 #endif
