@@ -293,7 +293,7 @@ int era_create(int argc, char **argv)
 	 * clear metadata device
 	 */
 
-	md = md_open(meta);
+	md = md_open(meta, 1);
 	if (md == NULL)
 		goto out;
 
@@ -412,7 +412,7 @@ int era_open(int argc, char **argv)
 	 * read metadata device
 	 */
 
-	md = md_open(meta);
+	md = md_open(meta, 0);
 	if (md == NULL)
 		goto out;
 

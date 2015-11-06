@@ -37,6 +37,7 @@ struct md {
 
 	unsigned  cache_blocks;    /* allocated cache blocks   */
 	unsigned  cache_used;      /* user cache blocks        */
+	unsigned  offset_size;     /* TODO: dynamic cache offset size */
 	unsigned  cache_offset[0]; /* block offsets in data    */
 };
 
@@ -44,7 +45,7 @@ struct md {
  * metadata access functions
  */
 
-struct md *md_open(const char *device);
+struct md *md_open(const char *device, int rw);
 void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor);
 void md_flush(struct md *md);
 void md_close(struct md *md);

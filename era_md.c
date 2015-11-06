@@ -21,15 +21,17 @@
 #include "era_md.h"
 
 // open metadata device
-struct md *md_open(const char *device)
+struct md *md_open(const char *device, int rw)
 {
 	unsigned blocks;
 	uint64_t size;
 	struct stat st;
 	struct md *md;
-	int fd;
+	int fd, flags;
 
-	fd = open(device, O_RDWR | O_DIRECT);
+	flags = (rw ? O_RDWR : O_RDONLY) | O_DIRECT;
+
+	fd = open(device, flags);
 	if (fd == -1)
 	{
 		fprintf(stderr, "can't open device %s: %s\n",

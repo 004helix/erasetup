@@ -11,7 +11,6 @@
 
 #include "era.h"
 #include "era_md.h"
-#include "era_dm.h"
 #include "era_btree.h"
 
 // verbose printf macro
@@ -20,6 +19,59 @@
     if ((v) <= verbose) \
       printf((f), __VA_ARGS__); \
   } while (0)
+
+/*
+ * display superblock entries
+ */
+
+static void display_superblock(struct era_superblock *sb)
+{
+	printvf(1, "checksum:                    0x%08X\n",
+	           le32toh(sb->csum));
+	printvf(1, "flags:                       0x%08X\n",
+	           le32toh(sb->flags));
+	printvf(1, "blocknr:                     %llu\n",
+	           (long long unsigned)le64toh(sb->blocknr));
+	printvf(0, "uuid:                        %s\n",
+	           uuid2str(sb->uuid));
+	printvf(1, "magic:                       %llu\n",
+	           (long long unsigned)le64toh(sb->magic));
+	printvf(1, "version:                     %u\n",
+	           le32toh(sb->version));
+	printvf(0, "data block size:             %u sectors\n",
+	           le32toh(sb->data_block_size));
+	printvf(0, "metadata block size:         %u sectors\n",
+	           le32toh(sb->metadata_block_size));
+	printvf(0, "total data blocks:           %u\n",
+	           le32toh(sb->nr_blocks));
+	printvf(0, "current era:                 %u\n",
+	           le32toh(sb->current_era));
+	printvf(1, "current writeset/total bits: %u\n",
+	           le32toh(sb->current_writeset.nr_bits));
+	printvf(1, "current writeset/root:       %llu\n",
+	           (long long unsigned)le64toh(sb->current_writeset.root));
+	printvf(1, "writeset tree root:          %llu\n",
+	           (long long unsigned)le64toh(sb->writeset_tree_root));
+	printvf(1, "era array root:              %llu\n",
+	           (long long unsigned)le64toh(sb->era_array_root));
+	printvf(0, "metadata snapshot:           %llu\n",
+	           (long long unsigned)le64toh(sb->metadata_snap));
+}
+
+/*
+ * display space map
+ */
+static void display_spacemap(struct disk_sm_root *sm)
+{
+	printf("total metadata blocks:       %llu\n",
+	       (long long unsigned)le64toh(sm->nr_blocks));
+	printf("allocated metadata blocks:   %llu\n",
+	       (long long unsigned)le64toh(sm->nr_allocated));
+	printf("bitmap root:                 %llu\n",
+	       (long long unsigned)le64toh(sm->bitmap_root));
+	printf("ref count root:              %llu\n",
+	       (long long unsigned)le64toh(sm->ref_count_root));
+}
 
 /*
  * era array walk callback state
@@ -322,7 +374,7 @@ static int era_writeset_cb(unsigned size, void *k, void *v)
 		uint32_t bits = ws[i].nr_bits;
 		uint64_t root = ws[i].root;
 
-		printf("\n%s<writeset era=\"%u\" bits=\"%u\">\n",
+		printf("%s<writeset era=\"%u\" bits=\"%u\">\n",
 		       writeset.prefix, era, bits);
 
 		if (bits != writeset.blocks)
@@ -383,6 +435,7 @@ static int dump_writeset(struct md *md, unsigned max, const char *prefix)
 int era_dumpsb(int argc, char **argv)
 {
 	struct era_superblock *sb;
+	struct disk_sm_root *sm;
 	unsigned nr_blocks;
 	struct md *md;
 
@@ -398,7 +451,7 @@ int era_dumpsb(int argc, char **argv)
 		usage(stderr, 1);
 	}
 
-	md = md_open(argv[0]);
+	md = md_open(argv[0], 0);
 	if (md == NULL)
 		return -1;
 
@@ -406,48 +459,27 @@ int era_dumpsb(int argc, char **argv)
 	if (sb == NULL)
 		return -1;
 
-	if (era_sb_check(sb) && !force)
+	if (era_sb_check(sb))
 		return -1;
 
 	printf("--- superblock ----------------------------------------------\n");
+	display_superblock(sb);
 
-	printvf(1, "checksum:                    0x%08X\n",
-	           le32toh(sb->csum));
-	printvf(1, "flags:                       0x%08X\n",
-	           le32toh(sb->flags));
-	printvf(1, "blocknr:                     %llu\n",
-	           (long long unsigned)le64toh(sb->blocknr));
-	printvf(0, "uuid:                        %s\n",
-	           uuid2str(sb->uuid));
-	printvf(1, "magic:                       %llu\n",
-	           (long long unsigned)le64toh(sb->magic));
-	printvf(1, "version:                     %u\n",
-	           le32toh(sb->version));
-	printvf(0, "data block size:             %u sectors\n",
-	           le32toh(sb->data_block_size));
-	printvf(0, "metadata block size:         %u sectors\n",
-	           le32toh(sb->metadata_block_size));
-	printvf(0, "total data blocks:           %u\n",
-	           le32toh(sb->nr_blocks));
-	printvf(0, "current era:                 %u\n",
-	           le32toh(sb->current_era));
-	printvf(1, "current writeset/total bits: %u\n",
-	           le32toh(sb->current_writeset.nr_bits));
-	printvf(1, "current writeset/root:       %llu\n",
-	           (long long unsigned)le64toh(sb->current_writeset.root));
-	printvf(1, "writeset tree root:          %llu\n",
-	           (long long unsigned)le64toh(sb->writeset_tree_root));
-	printvf(1, "era array root:              %llu\n",
-	           (long long unsigned)le64toh(sb->era_array_root));
-	printvf(0, "metadata snapshot:           %llu\n",
-	           (long long unsigned)le64toh(sb->metadata_snap));
-
-	if (verbose <= 1)
+	if (verbose < 1)
 		goto done;
+
+	sm = (struct disk_sm_root *)sb->metadata_space_map_root;
+
+	printf("\n--- spacemap ------------------------------------------------\n");
+	display_spacemap(sm);
+
+	if (verbose < 2)
+		goto done;
+
+	printf("\n--- btrees --------------------------------------------------\n");
 
 	nr_blocks = le32toh(sb->nr_blocks);
 
-	printf("\n--- btrees --------------------------------------------------\n");
 	printf("<superblock block_size=\"%u\" blocks=\"%u\" era=\"%u\">\n",
 	       le32toh(sb->data_block_size), nr_blocks,
 	       le32toh(sb->current_era));
@@ -463,11 +495,12 @@ int era_dumpsb(int argc, char **argv)
 
 		if (bits != nr_blocks)
 		{
-			fprintf(stderr, "current writeset bits mismatch\n");
+			fprintf(stderr, "current writeset bits count "
+			        "mismatch\n");
 			goto out;
 		}
 
-		printf("\n  <current_writeset bits=\"%u\">\n", bits);
+		printf("  <current_writeset bits=\"%u\">\n", bits);
 
 		if (dump_bitset(md, bits, "    ", root))
 			goto out;
@@ -479,25 +512,25 @@ int era_dumpsb(int argc, char **argv)
 	 * dump archived writesets
 	 */
 
-	printf("\n  <writeset_tree>\n");
+	printf("  <writeset_tree>\n");
 
 	if (dump_writeset(md, nr_blocks, "    "))
 		goto out;
 
-	printf("\n  </writeset_tree>\n");
+	printf("  </writeset_tree>\n");
 
 	/*
 	 * dump era_array
 	 */
 
-	printf("\n  <era_array>\n");
+	printf("  <era_array>\n");
 
 	if (dump_array(md, nr_blocks, "    "))
 		goto out;
 
 	printf("  </era_array>\n");
 
-	printf("\n</superblock>\n");
+	printf("</superblock>\n");
 
 done:
 	md_close(md);
