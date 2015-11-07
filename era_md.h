@@ -26,19 +26,20 @@ struct generic_node {
  * metadata device
  */
 struct md {
-	int       fd;              /* device fd                */
-	unsigned  major;           /* device major number      */
-	unsigned  minor;           /* device minor number      */
-	unsigned  blocks;          /* device size / block size */
-	uint64_t  size;            /* device size in bytes     */
+	int       fd;                /* device fd */
+	unsigned  major;             /* major device number */
+	unsigned  minor;             /* minor device number */
+	uint64_t  size;              /* device size in bytes */
+	unsigned  blocks;            /* metadata blocks */
 
-	void     *buffer;          /* block read buffer        */
-	void     *cache;           /* blocks cache             */
+	void     *buffer;            /* read buffer for non-cached ops */
 
-	unsigned  cache_blocks;    /* allocated cache blocks   */
-	unsigned  cache_used;      /* user cache blocks        */
-	unsigned  offset_size;     /* TODO: dynamic cache offset size */
-	unsigned  cache_offset[0]; /* block offsets in data    */
+	void     *cache;             /* read buffers for cached ops */
+	unsigned  cache_allocated;   /* allocated cache blocks */
+	unsigned  cache_used;        /* used cache blocks */
+
+	unsigned *offset;            /* cache offsets */
+	unsigned  offset_allocated;  /* cache offsets size */
 };
 
 /*

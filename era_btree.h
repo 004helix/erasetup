@@ -14,8 +14,10 @@ enum leaf_type {
 	LEAF_WRITESET = 3
 };
 
-#define BTREE_CSUM_XOR 121107
-#define ARRAY_CSUM_XOR 595846735
+#define BTREE_CSUM_XOR      121107
+#define ARRAY_CSUM_XOR      595846735
+#define SM_INDEX_CSUM_XOR   160478
+#define SM_BITMAP_CSUM_XOR  240779
 
 enum node_flags {
 	INTERNAL_NODE = 1,

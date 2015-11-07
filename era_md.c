@@ -23,7 +23,6 @@
 // open metadata device
 struct md *md_open(const char *device, int rw)
 {
-	unsigned blocks;
 	uint64_t size;
 	struct stat st;
 	struct md *md;
@@ -62,15 +61,19 @@ struct md *md_open(const char *device, int rw)
 		return NULL;
 	}
 
-	blocks = size / MD_BLOCK_SIZE;
-
-	md = malloc(sizeof(struct md) + sizeof(unsigned) * blocks);
+	md = malloc(sizeof(struct md));
 	if (md == NULL)
 	{
 		fprintf(stderr, "not enough memory\n");
 		close(fd);
 		return NULL;
 	}
+
+	md->fd = fd;
+	md->size = size;
+	md->major = major(st.st_rdev);
+	md->minor = minor(st.st_rdev);
+	md->blocks = size / MD_BLOCK_SIZE;
 
 	md->buffer = mmap(NULL, MD_BLOCK_SIZE, PROT_READ | PROT_WRITE,
 	                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -82,6 +85,7 @@ struct md *md_open(const char *device, int rw)
 		return NULL;
 	}
 
+	md->cache_allocated = 2;
 	md->cache = mmap(NULL, MD_BLOCK_SIZE * 2, PROT_READ | PROT_WRITE,
 	                 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (md->cache == MAP_FAILED)
@@ -93,13 +97,19 @@ struct md *md_open(const char *device, int rw)
 		return NULL;
 	}
 
-	md->fd = fd;
-	md->major = major(st.st_rdev);
-	md->minor = minor(st.st_rdev);
-	md->size = size;
-	md->blocks = blocks;
-	md->cache_blocks = 2;
 	md->cache_used = 2;
+
+	md->offset_allocated = 16;
+	md->offset = malloc(md->offset_allocated * sizeof(unsigned));
+	if (md->offset == NULL)
+	{
+		fprintf(stderr, "not enough memory\n");
+		munmap(md->cache, MD_BLOCK_SIZE * md->cache_allocated);
+		munmap(md->buffer, MD_BLOCK_SIZE);
+		close(fd);
+		free(md);
+		return NULL;
+	}
 
 	md_flush(md);
 
@@ -112,8 +122,9 @@ void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor)
 	struct generic_node *node;
 
 	// most used case: block already in cache
-	if ((flags & MD_CACHED) && md->cache_offset[nr] != 0xffffffff)
-		return md->cache + MD_BLOCK_SIZE * md->cache_offset[nr];
+	if ((flags & MD_CACHED) && nr < md->offset_allocated &&
+	    md->offset[nr] != 0xffffffff)
+		return md->cache + MD_BLOCK_SIZE * md->offset[nr];
 
 	// non-cached read
 	if (!(flags & MD_CACHED))
@@ -141,15 +152,16 @@ void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor)
 	}
 
 	// double cache size
-	if (md->cache_used == md->cache_blocks)
+	if (md->cache_used == md->cache_allocated)
 	{
-		unsigned new_blocks;
+		unsigned new_alloc;
 		void *new_cache;
 
-		new_blocks = md->cache_blocks << 1;
+		new_alloc = md->cache_allocated << 1;
 		new_cache = mremap(md->cache,
-		                   md->cache_blocks * MD_BLOCK_SIZE,
-		                   new_blocks * MD_BLOCK_SIZE, MREMAP_MAYMOVE);
+		                   md->cache_allocated * MD_BLOCK_SIZE,
+		                   new_alloc * MD_BLOCK_SIZE,
+		                   MREMAP_MAYMOVE);
 
 		if (new_cache == MAP_FAILED)
 		{
@@ -158,7 +170,7 @@ void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor)
 			return NULL;
 		}
 
-		md->cache_blocks = new_blocks;
+		md->cache_allocated = new_alloc;
 		md->cache = new_cache;
 	}
 
@@ -182,8 +194,34 @@ void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor)
 		}
 	}
 
+	// increase cache offest size
+	if (nr >= md->offset_allocated)
+	{
+		unsigned new_alloc = md->offset_allocated;
+		void *new_offset;
+
+		while (nr >= new_alloc)
+			new_alloc <<= 1;
+
+		new_offset = realloc(md->offset,
+		                     sizeof(unsigned) * new_alloc);
+
+		if (new_offset == NULL)
+		{
+			fprintf(stderr, "not enough memory\n");
+			return NULL;
+		}
+
+		md->offset = new_offset;
+
+		memset(&md->offset[md->offset_allocated], 0xff,
+		       sizeof(unsigned) * (new_alloc - md->offset_allocated));
+
+		md->offset_allocated = new_alloc;
+	}
+
 	// save in cache
-	md->cache_offset[nr] = md->cache_used;
+	md->offset[nr] = md->cache_used;
 	md->cache_used++;
 
 	return node;
@@ -195,17 +233,18 @@ void md_flush(struct md *md)
 	if (md->cache_used)
 	{
 		md->cache_used = 0;
-		memset(md->cache_offset, 0xff,
-		       sizeof(unsigned) * md->blocks);
+		memset(md->offset, 0xff,
+		       sizeof(unsigned) * md->offset_allocated);
 	}
 }
 
 // close metadata device
 void md_close(struct md *md)
 {
-	munmap(md->cache, md->cache_blocks * MD_BLOCK_SIZE);
-	munmap(md->buffer, MD_BLOCK_SIZE);
 	close(md->fd);
+	munmap(md->cache, md->cache_allocated * MD_BLOCK_SIZE);
+	munmap(md->buffer, MD_BLOCK_SIZE);
+	free(md->offset);
 	free(md);
 }
 

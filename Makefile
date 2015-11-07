@@ -1,6 +1,6 @@
 CC = gcc
 LD = gcc
-CFLAGS = -Wall
+CFLAGS = -Wall -g
 #CFLAGS = -Wall -Werror
 LDFLAGS = -ldevmapper
 
