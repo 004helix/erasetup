@@ -10,6 +10,8 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <limits.h>
 #include <unistd.h>
 #include <string.h>
 #include <endian.h>
@@ -20,10 +22,9 @@
 #include "crc32c.h"
 #include "era.h"
 #include "era_md.h"
+#include "era_sm.h"
 #include "era_dm.h"
 #include "era_cmd_basic.h"
-
-#include <libdevmapper.h>
 
 static char uuid_raw[UUID_LEN];
 static char uuid[32 + UUID_LEN * 2];
@@ -391,7 +392,7 @@ int era_open(int argc, char **argv)
 		return -1;
 	}
 
-	sprintf(liner, "%s-data", name);
+	sprintf(liner, "%s-orig", name);
 
 	/*
 	 * stat data device
@@ -401,14 +402,14 @@ int era_open(int argc, char **argv)
 		goto out;
 
 	/*
-	 * read metadata device
+	 * read, check and fix metadata device
 	 */
 
-	md = md_open(meta, 0);
+	md = md_open(meta, 1);
 	if (md == NULL)
 		goto out;
 
-	sb = md_block(md, 0, 0, SUPERBLOCK_CSUM_XOR);
+	sb = md_block(md, MD_CACHED, 0, SUPERBLOCK_CSUM_XOR);
 	if (sb == NULL || era_sb_check(sb))
 	{
 		md_close(md);
@@ -417,6 +418,12 @@ int era_open(int argc, char **argv)
 
 	chunk = (int)le32toh(sb->data_block_size);
 	blocks = le32toh(sb->nr_blocks);
+
+	if (era_spacemap_rebuild(md))
+	{
+		md_close(md);
+		goto out;
+	}
 
 	meta_major = md->major;
 	meta_minor = md->minor;
@@ -438,7 +445,8 @@ int era_open(int argc, char **argv)
 	/*
 	 * create liner target
 	 */
-	snprintf(uuid, sizeof(uuid), "%s%s-data",
+
+	snprintf(uuid, sizeof(uuid), "%s%s-orig",
 	         UUID_PREFIX, uuid2str(uuid_raw));
 
 	snprintf(table, sizeof(table), "%u:%u 0", data_major, data_minor);
