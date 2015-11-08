@@ -33,30 +33,27 @@ struct md *md_open(const char *device, int rw)
 	fd = open(device, flags);
 	if (fd == -1)
 	{
-		fprintf(stderr, "can't open device %s: %s\n",
-		        device, strerror(errno));
+		error(errno, "can't open device %s", device);
 		return NULL;
 	}
 
 	if (fstat(fd, &st) == -1)
 	{
-		fprintf(stderr, "can't stat device %s: %s\n",
-		        device, strerror(errno));
+		error(errno, "can't stat device %s", device);
 		close(fd);
 		return NULL;
 	}
 
 	if (!S_ISBLK(st.st_mode))
 	{
-		fprintf(stderr, "data device is not a block device\n");
+		error(0, "data device is not a block device");
 		close(fd);
 		return NULL;
 	}
 
 	if (ioctl(fd, BLKGETSIZE64, &size))
 	{
-		fprintf(stderr, "can't get device size: %s\n",
-		        strerror(errno));
+		error(errno, "can't get device size %s", device);
 		close(fd);
 		return NULL;
 	}
@@ -64,7 +61,7 @@ struct md *md_open(const char *device, int rw)
 	md = malloc(sizeof(struct md));
 	if (md == NULL)
 	{
-		fprintf(stderr, "not enough memory\n");
+		error(ENOMEM, NULL);
 		close(fd);
 		return NULL;
 	}
@@ -79,7 +76,7 @@ struct md *md_open(const char *device, int rw)
 	                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (md->buffer == MAP_FAILED)
 	{
-		fprintf(stderr, "not enough memory\n");
+		error(ENOMEM, NULL);
 		close(fd);
 		free(md);
 		return NULL;
@@ -90,7 +87,7 @@ struct md *md_open(const char *device, int rw)
 	                 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (md->cache == MAP_FAILED)
 	{
-		fprintf(stderr, "not enough memory\n");
+		error(ENOMEM, NULL);
 		munmap(md->buffer, MD_BLOCK_SIZE);
 		close(fd);
 		free(md);
@@ -103,7 +100,7 @@ struct md *md_open(const char *device, int rw)
 	md->offset = malloc(md->offset_allocated * sizeof(unsigned));
 	if (md->offset == NULL)
 	{
-		fprintf(stderr, "not enough memory\n");
+		error(ENOMEM, NULL);
 		munmap(md->cache, MD_BLOCK_SIZE * md->cache_allocated);
 		munmap(md->buffer, MD_BLOCK_SIZE);
 		close(fd);
@@ -142,8 +139,7 @@ void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor)
 			                           sizeof(node->data)) ^ xor;
 			if (csum != le32toh(node->csum))
 			{
-				fprintf(stderr, "bad block checksum: %u\n",
-				        nr);
+				error(0, "bad block checksum: %u", nr);
 				return NULL;
 			}
 		}
@@ -165,8 +161,7 @@ void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor)
 
 		if (new_cache == MAP_FAILED)
 		{
-			fprintf(stderr, "mremap() failed: %s\n",
-			        strerror(errno));
+			error(errno, "mremap failed");
 			return NULL;
 		}
 
@@ -188,7 +183,7 @@ void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor)
 		                           sizeof(node->data)) ^ xor;
 		if (csum != le32toh(node->csum))
 		{
-			fprintf(stderr, "bad block checksum: %u\n", nr);
+			error(0, "bad block checksum: %u", nr);
 			return NULL;
 		}
 	}
@@ -206,7 +201,7 @@ void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor)
 
 		if (new_offset == NULL)
 		{
-			fprintf(stderr, "not enough memory\n");
+			error(ENOMEM, NULL);
 			return NULL;
 		}
 
@@ -251,17 +246,16 @@ int md_read(struct md *md, unsigned nr, void *data)
 {
 	if (nr >= md->blocks)
 	{
-		fprintf(stderr, "can't read meta-data device: "
-		        "block number exceeds total blocks: "
-		        "%u >= %u\n", nr, md->blocks);
+		error(0, "can't read meta-data device: "
+		         "block number exceeds total blocks: "
+		         "%u >= %u", nr, md->blocks);
 		return -1;
 	}
 
 	if (pread(md->fd, data, MD_BLOCK_SIZE,
 	          nr * MD_BLOCK_SIZE) != MD_BLOCK_SIZE)
 	{
-		fprintf(stderr, "can't read meta-data device: %s\n",
-		        strerror(errno));
+		error(errno, "can't read meta-data device");
 		return -1;
 	}
 
@@ -273,17 +267,16 @@ int md_write(struct md *md, unsigned nr, const void *data)
 {
 	if (nr >= md->blocks)
 	{
-		fprintf(stderr, "can't write meta-data device: "
-		        "block number exceeds total blocks: "
-		        "%u >= %u\n", nr, md->blocks);
+		error(0, "can't write meta-data device: "
+		         "block number exceeds total blocks: "
+		         "%u >= %u", nr, md->blocks);
 		return -1;
 	}
 
 	if (pwrite(md->fd, data, MD_BLOCK_SIZE,
 	           nr * MD_BLOCK_SIZE) != MD_BLOCK_SIZE)
 	{
-		fprintf(stderr, "can't write meta-data device: %s\n",
-		        strerror(errno));
+		error(errno, "can't write meta-data device");
 		return -1;
 	}
 

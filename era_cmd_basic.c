@@ -36,15 +36,13 @@ static int generate_uuid(void)
 	fd = open(RANDOM_DEVICE, O_RDONLY);
 	if (fd == -1)
 	{
-		fprintf(stderr, "can't open rand device %s: %s\n",
-		        RANDOM_DEVICE, strerror(errno));
+		error(errno, "can't open rand device %s", RANDOM_DEVICE);
 		return -1;
 	}
 
 	if (read(fd, uuid_raw, sizeof(uuid_raw)) != sizeof(uuid_raw))
 	{
-		fprintf(stderr, "can't read rand device %s: %s\n",
-		        RANDOM_DEVICE, strerror(errno));
+		error(errno, "can't read rand device %s", RANDOM_DEVICE);
 		return -1;
 	}
 
@@ -65,7 +63,7 @@ static int parse_chunk(const char *str)
 
 	if (chunk == LLONG_MAX)
 	{
-		fprintf(stderr, "chunk too big: %s\n", str);
+		error(0, "chunk too big: %s", str);
 		return -1;
 	}
 
@@ -98,8 +96,7 @@ static int parse_chunk(const char *str)
 
 	if (chunk % SECTOR_SIZE)
 	{
-		fprintf(stderr, "chunk size is not divisible by %d\n",
-		        SECTOR_SIZE);
+		error(0, "chunk size is not divisible by %d", SECTOR_SIZE);
 		return -1;
 	}
 
@@ -107,14 +104,14 @@ static int parse_chunk(const char *str)
 
 	if (chunk < MIN_CHUNK_SIZE)
 	{
-		fprintf(stderr, "chunk too small, minimum is %d\n",
-		        (MIN_CHUNK_SIZE * SECTOR_SIZE));
+		error(0, "chunk too small, minimum is %d",
+		         (MIN_CHUNK_SIZE * SECTOR_SIZE));
 		return -1;
 	}
 
 	if (chunk > INT_MAX)
 	{
-		fprintf(stderr, "chunk too big: %s\n", str);
+		error(0, "chunk too big: %s", str);
 		return -1;
 	}
 
@@ -163,7 +160,7 @@ static int clear_metadata(struct md *md, const char *device)
 		else
 			what = "existing data";
 
-		fprintf(stderr, "%s found on %s\n", what, device);
+		error(0, "%s found on %s", what, device);
 
 		return -1;
 	}
@@ -184,31 +181,27 @@ static int blkstat(const char *device,
 	fd = open(device, O_RDONLY | O_DIRECT);
 	if (fd == -1)
 	{
-		fprintf(stderr, "can't open device %s: %s\n",
-		        device, strerror(errno));
+		error(errno, "can't open device %s", device);
 		return -1;
 	}
 
 	if (fstat(fd, &st) == -1)
 	{
-		fprintf(stderr, "can't stat device %s: %s\n",
-		        device, strerror(errno));
+		error(errno, "can't stat device %s", device);
 		close(fd);
 		return -1;
 	}
 
 	if (!S_ISBLK(st.st_mode))
 	{
-		fprintf(stderr, "device is not a block device: %s\n",
-		        device);
+		error(0, "device is not a block device: %s", device);
 		close(fd);
 		return -1;
 	}
 
 	if (ioctl(fd, BLKGETSIZE64, &size))
 	{
-		fprintf(stderr, "can't get device size %s: %s\n",
-		        device, strerror(errno));
+		error(errno, "can't get device size %s", device);
 		close(fd);
 		return -1;
 	}
@@ -244,13 +237,13 @@ int era_create(int argc, char **argv)
 	switch (argc)
 	{
 	case 0:
-		fprintf(stderr, "device name argument expected\n");
+		error(0, "device name argument expected");
 		usage(stderr, 1);
 	case 1:
-		fprintf(stderr, "metadata device argument expected\n");
+		error(0, "metadata device argument expected");
 		usage(stderr, 1);
 	case 2:
-		fprintf(stderr, "data device argument expected\n");
+		error(0, "data device argument expected");
 		usage(stderr, 1);
 	case 3:
 		chunk = DEF_CHUNK_SIZE;
@@ -259,13 +252,12 @@ int era_create(int argc, char **argv)
 		chunk = parse_chunk(argv[3]);
 		if (chunk == -1)
 		{
-			fprintf(stderr, "can't parse chunk size: %s\n",
-			        argv[3]);
+			error(0, "can't parse chunk size: %s", argv[3]);
 			return -1;
 		}
 		break;
 	default:
-		fprintf(stderr, "unknown argument: %s\n", argv[4]);
+		error(0, "unknown argument: %s", argv[4]);
 		usage(stderr, 1);
 	}
 
@@ -276,7 +268,7 @@ int era_create(int argc, char **argv)
 	liner = malloc(16 + strlen(data));
 	if (liner == NULL)
 	{
-		fprintf(stderr, "not enough memory\n");
+		error(ENOMEM, NULL);
 		return -1;
 	}
 
@@ -373,18 +365,18 @@ int era_open(int argc, char **argv)
 	switch (argc)
 	{
 	case 0:
-		fprintf(stderr, "device name argument expected\n");
+		error(0, "device name argument expected");
 		usage(stderr, 1);
 	case 1:
-		fprintf(stderr, "metadata device argument expected\n");
+		error(0, "metadata device argument expected");
 		usage(stderr, 1);
 	case 2:
-		fprintf(stderr, "data device argument expected\n");
+		error(0, "data device argument expected");
 		usage(stderr, 1);
 	case 3:
 		break;
 	default:
-		fprintf(stderr, "unknown argument: %s\n", argv[4]);
+		error(0, "unknown argument: %s", argv[4]);
 		usage(stderr, 1);
 	}
 
@@ -395,7 +387,7 @@ int era_open(int argc, char **argv)
 	liner = malloc(16 + strlen(data));
 	if (liner == NULL)
 	{
-		fprintf(stderr, "not enough memory\n");
+		error(ENOMEM, NULL);
 		return -1;
 	}
 
@@ -434,19 +426,18 @@ int era_open(int argc, char **argv)
 	chunks = (unsigned)((sectors + chunk - 1) / chunk);
 	if (!force && chunks != (unsigned)blocks)
 	{
-		fprintf(stderr, "can't open era device: data device resized\n"
-		                "  chunk size: %i bytes\n"
-		                "  total chunks: %u\n"
-		                "  chunks on %s: %u\n",
-		                chunk * SECTOR_SIZE, (unsigned)blocks,
-		                data, chunks);
+		error(0, "can't open era device: data device resized\n"
+		         "  chunk size: %i bytes\n"
+		         "  total chunks: %u\n"
+		         "  chunks on %s: %u",
+		         chunk * SECTOR_SIZE, (unsigned)blocks,
+		         data, chunks);
 		goto out;
 	}
 
 	/*
 	 * create liner target
 	 */
-
 	snprintf(uuid, sizeof(uuid), "%s%s-data",
 	         UUID_PREFIX, uuid2str(uuid_raw));
 

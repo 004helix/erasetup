@@ -38,10 +38,10 @@ static int walk_array_node(struct md *md, uint64_t nr,
 	blocknr = le64toh(node->header.blocknr);
 	if (blocknr != nr)
 	{
-		fprintf(stderr, "bad array node: block number incorrect: "
-		        "expected %llu, but got %llu\n",
-		        (long long unsigned)nr,
-		        (long long unsigned)blocknr);
+		error(0, "bad array node: block number incorrect: "
+		         "expected %llu, but got %llu",
+		         (long long unsigned)nr,
+		         (long long unsigned)blocknr);
 		return -1;
 	}
 
@@ -55,32 +55,32 @@ static int walk_array_node(struct md *md, uint64_t nr,
 		break;
 	case LEAF_WRITESET:
 		// can't get here, just putting in to pacify the compiler
-		fprintf(stderr, "unknown error\n");
+		error(0, "unknown error");
 		return -1;
 	}
 
 	value_size = le32toh(node->header.value_size);
 	if (value_size != expected)
 	{
-		fprintf(stderr, "bad btree node: value_size mismatch: "
-		        "expected %u, but got %u\n",
-		        expected, value_size);
+		error(0, "bad btree node: value_size mismatch: "
+		         "expected %u, but got %u",
+		         expected, value_size);
 		return -1;
 	}
 
 	max_entries = le32toh(node->header.max_entries);
 	if (max_entries > (MD_BLOCK_SIZE - sizeof(*node)) / value_size)
 	{
-		fprintf(stderr, "bad array node: max_entries too large: %u\n",
-		        max_entries);
+		error(0, "bad array node: max_entries too large: %u",
+		         max_entries);
 		return -1;
 	}
 
 	nr_entries = le32toh(node->header.nr_entries);
 	if (nr_entries > max_entries)
 	{
-		fprintf(stderr, "bad btree node: nr_entries (%u) > "
-		        "max_entries (%u)", nr_entries, max_entries);
+		error(0, "bad btree node: nr_entries (%u) > "
+		         "max_entries (%u)", nr_entries, max_entries);
 		return -1;
 	}
 
@@ -115,18 +115,18 @@ static int walk_btree_node(struct md *md, uint64_t nr,
 	blocknr = le64toh(node->header.blocknr);
 	if (blocknr != nr)
 	{
-		fprintf(stderr, "bad btree node: block number incorrect: "
-		        "expected %llu, but got: %llu\n",
-		        (long long unsigned)nr,
-		        (long long unsigned)blocknr);
+		error(0, "bad btree node: block number incorrect: "
+		         "expected %llu, but got: %llu",
+		         (long long unsigned)nr,
+		         (long long unsigned)blocknr);
 		return -1;
 	}
 
 	flags = le32toh(node->header.flags);
 	if (flags & INTERNAL_NODE && flags & LEAF_NODE)
 	{
-		fprintf(stderr, "bad btree node: both internnal and leaf "
-		        "bits are set\n");
+		error(0, "bad btree node: both internnal and leaf "
+		         "bits are set");
 		return -1;
 	}
 
@@ -153,9 +153,9 @@ static int walk_btree_node(struct md *md, uint64_t nr,
 
 	if (value_size != expected)
 	{
-		fprintf(stderr, "bad btree node: value_size mismatch: "
-		        "expected %u, but got %u\n",
-		        expected, value_size);
+		error(0, "bad btree node: value_size mismatch: "
+		         "expected %u, but got %u",
+		         expected, value_size);
 		return -1;
 	}
 
@@ -163,23 +163,23 @@ static int walk_btree_node(struct md *md, uint64_t nr,
 	if (max_entries >
 	    (MD_BLOCK_SIZE - sizeof(*node)) / (sizeof(uint64_t) + value_size))
 	{
-		fprintf(stderr, "bad btree node: max_entries too large: %u\n",
-		        max_entries);
+		error(0, "bad btree node: max_entries too large: %u",
+		         max_entries);
 		return -1;
 	}
 
 	if (max_entries % 3)
 	{
-		fprintf(stderr, "bad btree node: max entries is not divisible "
-		        "by 3: %u\n", max_entries);
+		error(0, "bad btree node: max entries is not divisible "
+		         "by 3: %u", max_entries);
 		return -1;
 	}
 
 	nr_entries = le32toh(node->header.nr_entries);
 	if (nr_entries > max_entries)
 	{
-		fprintf(stderr, "bad btree node: nr_entries (%u) > "
-		        "max_entries (%u)", nr_entries, max_entries);
+		error(0, "bad btree node: nr_entries (%u) > "
+		         "max_entries (%u)", nr_entries, max_entries);
 		return -1;
 	}
 
@@ -235,8 +235,8 @@ int era_array_walk(struct md *md, uint64_t root,
 	if (walk_btree_node(md, root, LEAF_ARRAY, datacb, blockcb) == -1)
 		return -1;
 
-	if (datacb != NULL)
-		return datacb(0, NULL, NULL) ? -1 : 0;
+	if (datacb != NULL && datacb(0, NULL, NULL))
+		return -1;
 
 	return 0;
 }
@@ -249,8 +249,8 @@ int era_bitset_walk(struct md *md, uint64_t root,
 	if (walk_btree_node(md, root, LEAF_BITSET, datacb, blockcb) == -1)
 		return -1;
 
-	if (datacb != NULL)
-		return datacb(0, NULL, NULL) ? -1 : 0;
+	if (datacb != NULL && datacb(0, NULL, NULL))
+		return -1;
 
 	return 0;
 }
@@ -263,8 +263,8 @@ int era_writeset_walk(struct md *md, uint64_t root,
 	if (walk_btree_node(md, root, LEAF_WRITESET, datacb, blockcb) == -1)
 		return -1;
 
-	if (datacb != NULL)
-		return datacb(0, NULL, NULL) ? -1 : 0;
+	if (datacb != NULL && datacb(0, NULL, NULL))
+		return -1;
 
 	return 0;
 }

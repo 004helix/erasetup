@@ -22,6 +22,8 @@ extern int force;
 
 char *uuid2str(const void *uuid);
 void usage(FILE *out, int code);
+void error(int err, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
 
 #define SUPERBLOCK_MAGIC 2126579579
 #define SUPERBLOCK_CSUM_XOR 146538381

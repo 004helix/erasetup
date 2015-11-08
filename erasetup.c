@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <string.h>
@@ -63,6 +64,60 @@ void usage(FILE *out, int code)
 	exit(code);
 }
 
+// custom error print function
+void error(int err, const char *fmt, ...)
+{
+	static size_t bufsize = 0;
+	static char *buffer, *p;
+	va_list ap;
+	int n;
+
+	if (err == ENOMEM)
+	{
+		fprintf(stderr, "not enough memory\n");
+		return;
+	}
+
+	if (bufsize == 0)
+	{
+		buffer = malloc(512);
+		if (buffer == NULL)
+			return;
+		bufsize = 256;
+	}
+
+	while (1)
+	{
+		va_start(ap, fmt);
+		n = vsnprintf(buffer, bufsize, fmt, ap);
+		va_end(ap);
+
+		if (n < 0)
+			return;
+
+		if (n < bufsize)
+			break;
+
+		p = realloc(buffer, bufsize << 1);
+		if (p == NULL)
+		{
+			free(buffer);
+			bufsize = 0;
+			return;
+		}
+		else
+		{
+			bufsize <<= 1;
+			buffer = p;
+		}
+	}
+
+	if (err == 0)
+		fprintf(stderr, "%s\n", buffer);
+	else
+		fprintf(stderr, "%s: %s\n", buffer, strerror(err));
+}
+
 // convert uuid to string
 char *uuid2str(const void *uuid)
 {
@@ -90,14 +145,14 @@ int era_sb_check(struct era_superblock *sb)
 	magic = le32toh(sb->magic);
 	if (magic != SUPERBLOCK_MAGIC)
 	{
-		fprintf(stderr, "invalid superblock magic\n");
+		error(0, "invalid superblock magic");
 		return -1;
 	}
 
 	version = le32toh(sb->version);
 	if (version < MIN_ERA_VERSION || version > MAX_ERA_VERSION)
 	{
-		fprintf(stderr, "unsupported era version: %d\n", version);
+		error(0, "unsupported era version: %d", version);
 		return -1;
 	}
 
@@ -139,7 +194,7 @@ int main(int argc, char **argv)
 	                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (empty_block == MAP_FAILED)
 	{
-		fprintf(stderr, "not enough memory\n");
+		error(ENOMEM, NULL);
 		return 1;
 	}
 
@@ -159,7 +214,7 @@ int main(int argc, char **argv)
 	if (!strcmp(cmd, "open"))
 		return era_open(argc - optind, &argv[optind]) ? 1 : 0;
 
-	fprintf(stderr, "%s: unknown command: %s\n", argv[0], cmd);
+	error(0, "%s: unknown command: %s", argv[0], cmd);
 	usage(stderr, 1);
 	return 0;
 }

@@ -8,12 +8,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include <unistd.h>
 
 #include "era.h"
 #include "era_md.h"
-//#include "era_sm.h"
+#include "era_sm.h"
 #include "era_btree.h"
 
 // verbose printf macro
@@ -188,16 +189,16 @@ static int dump_array(struct md *md, uint64_t root, unsigned max,
 
 	if (array.total < array.maximum)
 	{
-		fprintf(stderr, "not enough records in era_array: "
-		        "expected %u, but got %u\n",
-		        array.maximum, array.total);
+		error(0, "not enough records in era_array: "
+		         "expected %u, but got %u",
+		         array.maximum, array.total);
 		return -1;
 	}
 
 	if (array.overflow > 0)
 	{
-		fprintf(stderr, "too many records in era_array: "
-		        "overflow: %u\n", array.overflow);
+		error(0, "too many records in era_array: "
+		         "overflow: %u", array.overflow);
 		return -1;
 	}
 
@@ -321,17 +322,17 @@ static int dump_bitset(struct md *md, uint64_t root, unsigned max,
 
 	if (bitset.total < bitset.maximum)
 	{
-		fprintf(stderr, "not enough bits in writeset: "
-		        "expected %u, but got %u\n",
-		        bitset.maximum, bitset.total);
+		error(0, "not enough bits in writeset: "
+		         "expected %u, but got %u",
+		         bitset.maximum, bitset.total);
 		return -1;
 	}
 
 	if (bitset.overflow != ((64 - max % 64) & 63))
 	{
-		fprintf(stderr, "too many bits in writeset: "
-		        "expected overflow %u, but got %u\n",
-		        ((64 - max % 64) & 63), bitset.overflow);
+		error(0, "too many bits in writeset: "
+		         "expected overflow %u, but got %u",
+		         ((64 - max % 64) & 63), bitset.overflow);
 		return -1;
 	}
 
@@ -383,7 +384,7 @@ static int era_writeset_cb(unsigned size, void *k, void *v)
 
 		if (bits != writeset.blocks)
 		{
-			fprintf(stderr, "writeset bits mismatch\n");
+			error(0, "writeset bits mismatch");
 			return -1;
 		}
 
@@ -409,7 +410,7 @@ static int dump_writeset(struct md *md, uint64_t root, unsigned max,
 
 	if (keys_buffer == NULL || vals_buffer == NULL)
 	{
-		fprintf(stderr, "not enough memory\n");
+		error(ENOMEM, NULL);
 		if (keys_buffer)
 			free(keys_buffer);
 		if (vals_buffer)
@@ -448,13 +449,13 @@ int era_dumpsb(int argc, char **argv)
 
 	if (argc == 0)
 	{
-		fprintf(stderr, "metadata device argument expected\n");
+		error(0, "metadata device argument expected");
 		usage(stderr, 1);
 	}
 
 	if (argc > 1)
 	{
-		fprintf(stderr, "unknown argument: %s\n", argv[1]);
+		error(0, "unknown argument: %s", argv[1]);
 		usage(stderr, 1);
 	}
 
@@ -502,8 +503,7 @@ int era_dumpsb(int argc, char **argv)
 
 		if (bits != nr_blocks)
 		{
-			fprintf(stderr, "current writeset bits count "
-			        "mismatch\n");
+			error(0, "current writeset bits count mismatch");
 			goto out;
 		}
 
@@ -549,7 +549,6 @@ int era_dumpsb(int argc, char **argv)
 
 	printf("</superblock>\n");
 
-	/*
 	if (verbose < 2)
 		goto done;
 
@@ -558,13 +557,12 @@ int era_dumpsb(int argc, char **argv)
 	refcnt = malloc(md->blocks);
 	if (refcnt == NULL)
 	{
-		fprintf(stderr, "not enough memory\n");
+		error(ENOMEM, NULL);
 		return -1;
 	}
 
 	era_spacemap_walk(md, 9, refcnt);
 	write(2, refcnt, md->blocks);
-	*/
 
 done:
 	md_close(md);
