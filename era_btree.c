@@ -18,10 +18,9 @@
  *   LEAF_ARRAY:  leaf contains era_array elemens
  *   LEAF_BITSET: leaf contains bitset elements
  */
-static int walk_array_node(struct md *md, uint64_t nr,
-                           enum leaf_type type,
-           int (*datacb)(unsigned size, void *keys, void *values),
-           int (*blockcb)(unsigned nr, void *block))
+static int walk_array_node(struct md *md, uint64_t nr, enum leaf_type type,
+                           datacb_t datacb, void *dataarg,
+                           blockcb_t blockcb, void *blockarg)
 {
 	struct array_node *node;
 	uint64_t blocknr;
@@ -84,11 +83,11 @@ static int walk_array_node(struct md *md, uint64_t nr,
 		return -1;
 	}
 
-	if (blockcb != NULL && blockcb(nr, node))
+	if (blockcb != NULL && blockcb(blockarg, nr, node))
 		return -1;
 
 	if (nr_entries && datacb != NULL)
-		rc = datacb(nr_entries, NULL, node->values);
+		rc = datacb(dataarg, nr_entries, NULL, node->values);
 
 	return rc ? -1 : 0;
 }
@@ -96,10 +95,9 @@ static int walk_array_node(struct md *md, uint64_t nr,
 /*
  * visit btree node
  */
-static int walk_btree_node(struct md *md, uint64_t nr,
-                           enum leaf_type type,
-           int (*datacb)(unsigned size, void *keys, void *values),
-           int (*blockcb)(unsigned nr, void *block))
+static int walk_btree_node(struct md *md, uint64_t nr, enum leaf_type type,
+                           datacb_t datacb, void *dataarg,
+                           blockcb_t blockcb, void *blockarg)
 {
 	uint64_t blocknr;
 	unsigned i, flags;
@@ -183,7 +181,7 @@ static int walk_btree_node(struct md *md, uint64_t nr,
 		return -1;
 	}
 
-	if (blockcb != NULL && blockcb(nr, node))
+	if (blockcb != NULL && blockcb(blockarg, nr, node))
 		return -1;
 
 	if (flags & INTERNAL_NODE || type == LEAF_ARRAY || type == LEAF_BITSET)
@@ -205,10 +203,12 @@ static int walk_btree_node(struct md *md, uint64_t nr,
 
 			if (flags & INTERNAL_NODE)
 				rc = walk_btree_node(md, values[i], type,
-				                     datacb, blockcb);
+				                     datacb, dataarg,
+				                     blockcb, blockarg);
 			else
 				rc = walk_array_node(md, values[i], type,
-				                     datacb, blockcb);
+				                     datacb, dataarg,
+				                     blockcb, blockarg);
 
 			if (rc == -1)
 				return -1;
@@ -222,20 +222,23 @@ static int walk_btree_node(struct md *md, uint64_t nr,
 	 */
 
 	if (nr_entries && datacb != NULL)
-		rc = datacb(nr_entries, node->keys, &node->keys[max_entries]);
+		rc = datacb(dataarg, nr_entries, node->keys,
+		            &node->keys[max_entries]);
 
 	return rc ? -1 : 0;
 }
 
 // walk era array
 int era_array_walk(struct md *md, uint64_t root,
-                   int (*datacb)(unsigned size, void *keys, void *values),
-                   int (*blockcb)(unsigned nr, void *block))
+                   datacb_t datacb, void *dataarg,
+                   blockcb_t blockcb, void *blockarg)
 {
-	if (walk_btree_node(md, root, LEAF_ARRAY, datacb, blockcb) == -1)
+	if (walk_btree_node(md, root, LEAF_ARRAY,
+	                    datacb, dataarg,
+	                    blockcb, blockarg) == -1)
 		return -1;
 
-	if (datacb != NULL && datacb(0, NULL, NULL))
+	if (datacb != NULL && datacb(dataarg, 0, NULL, NULL))
 		return -1;
 
 	return 0;
@@ -243,27 +246,31 @@ int era_array_walk(struct md *md, uint64_t root,
 
 // walk era bitset
 int era_bitset_walk(struct md *md, uint64_t root,
-                    int (*datacb)(unsigned size, void *keys, void *values),
-                    int (*blockcb)(unsigned nr, void *block))
+                    datacb_t datacb, void *dataarg,
+                    blockcb_t blockcb, void *blockarg)
 {
-	if (walk_btree_node(md, root, LEAF_BITSET, datacb, blockcb) == -1)
+	if (walk_btree_node(md, root, LEAF_BITSET,
+	                    datacb, dataarg,
+	                    blockcb, blockarg) == -1)
 		return -1;
 
-	if (datacb != NULL && datacb(0, NULL, NULL))
+	if (datacb != NULL && datacb(dataarg, 0, NULL, NULL))
 		return -1;
 
 	return 0;
 }
 
-// walk era writeset
-int era_writeset_walk(struct md *md, uint64_t root,
-                      int (*datacb)(unsigned size, void *keys, void *values),
-                      int (*blockcb)(unsigned nr, void *block))
+// walk era writesets
+int era_writesets_walk(struct md *md, uint64_t root,
+                       datacb_t datacb, void *dataarg,
+                       blockcb_t blockcb, void *blockarg)
 {
-	if (walk_btree_node(md, root, LEAF_WRITESET, datacb, blockcb) == -1)
+	if (walk_btree_node(md, root, LEAF_WRITESET,
+	                    datacb, dataarg,
+	                    blockcb, blockarg) == -1)
 		return -1;
 
-	if (datacb != NULL && datacb(0, NULL, NULL))
+	if (datacb != NULL && datacb(dataarg, 0, NULL, NULL))
 		return -1;
 
 	return 0;

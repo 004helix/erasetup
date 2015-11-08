@@ -51,16 +51,19 @@ struct array_node {
 	__u8 values[0];
 } __attribute__ ((packed));
 
+typedef int (*datacb_t) (void *arg, unsigned size, void *keys, void *vals);
+typedef int (*blockcb_t) (void *arg, uint64_t blocknr, void *block);
+
 int era_array_walk(struct md *md, uint64_t root,
-                   int (*datacb)(unsigned size, void *keys, void *values),
-                   int (*blockcb)(unsigned nr, void *block));
+                   datacb_t datacb, void *dataarg,
+                   blockcb_t blockcb, void *blockarg);
 
 int era_bitset_walk(struct md *md, uint64_t root,
-                    int (*datacb)(unsigned size, void *keys, void *values),
-                    int (*blockcb)(unsigned nr, void *block));
+                    datacb_t datacb, void *dataarg,
+                    blockcb_t blockcb, void *blockarg);
 
-int era_writeset_walk(struct md *md, uint64_t root,
-                      int (*datacb)(unsigned size, void *keys, void *values),
-                      int (*blockcb)(unsigned nr, void *block));
+int era_writesets_walk(struct md *md, uint64_t root,
+                       datacb_t datacb, void *dataarg,
+                       blockcb_t blockcb, void *blockarg);
 
 #endif

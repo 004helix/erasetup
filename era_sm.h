@@ -33,6 +33,7 @@ struct disk_bitmap_header {
 #define BYTES_PER_BLOCK (MD_BLOCK_SIZE - sizeof(struct disk_bitmap_header))
 #define ENTRIES_PER_BLOCK (BYTES_PER_BLOCK * ENTRIES_PER_BYTE)
 
+int era_spacemap_rebuild(struct md *md);
 int era_spacemap_walk(struct md *md, uint64_t root, unsigned char *refcnt);
 
 #endif
