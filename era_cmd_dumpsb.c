@@ -494,8 +494,6 @@ int era_dumpsb(int argc, char **argv)
 
 	printf("</superblock>\n");
 
-	era_spacemap_rebuild(md);
-
 done:
 	md_close(md);
 	return 0;

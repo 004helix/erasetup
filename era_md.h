@@ -30,7 +30,7 @@ struct md {
 	unsigned  major;             /* major device number */
 	unsigned  minor;             /* minor device number */
 	uint64_t  size;              /* device size in bytes */
-	unsigned  blocks;            /* metadata blocks */
+	uint64_t  blocks;            /* metadata blocks */
 
 	void     *buffer;            /* read buffer for non-cached ops */
 
@@ -47,11 +47,11 @@ struct md {
  */
 
 struct md *md_open(const char *device, int rw);
-void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor);
+void *md_block(struct md *md, int flags, uint64_t nr, uint32_t xor);
 void md_flush(struct md *md);
 void md_close(struct md *md);
 
-int md_read(struct md *md, unsigned nr, void *data);
-int md_write(struct md *md, unsigned nr, const void *data);
+int md_read(struct md *md, uint64_t nr, void *data);
+int md_write(struct md *md, uint64_t nr, const void *data);
 
 #endif

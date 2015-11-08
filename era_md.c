@@ -114,7 +114,7 @@ struct md *md_open(const char *device, int rw)
 }
 
 // read, check and possible cache metadata block
-void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor)
+void *md_block(struct md *md, int flags, uint64_t nr, uint32_t xor)
 {
 	struct generic_node *node;
 
@@ -139,7 +139,8 @@ void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor)
 			                           sizeof(node->data)) ^ xor;
 			if (csum != le32toh(node->csum))
 			{
-				error(0, "bad block checksum: %u", nr);
+				error(0, "bad block checksum: %llu",
+				         (long long unsigned)nr);
 				return NULL;
 			}
 		}
@@ -183,7 +184,8 @@ void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor)
 		                           sizeof(node->data)) ^ xor;
 		if (csum != le32toh(node->csum))
 		{
-			error(0, "bad block checksum: %u", nr);
+			error(0, "bad block checksum: %llu",
+			         (long long unsigned)nr);
 			return NULL;
 		}
 	}
@@ -242,13 +244,15 @@ void md_close(struct md *md)
 }
 
 // low-level metadata read
-int md_read(struct md *md, unsigned nr, void *data)
+int md_read(struct md *md, uint64_t nr, void *data)
 {
 	if (nr >= md->blocks)
 	{
 		error(0, "can't read meta-data device: "
 		         "block number exceeds total blocks: "
-		         "%u >= %u", nr, md->blocks);
+		         "%llu >= %llu",
+		         (long long unsigned)nr,
+		         (long long unsigned)md->blocks);
 		return -1;
 	}
 
@@ -263,13 +267,15 @@ int md_read(struct md *md, unsigned nr, void *data)
 }
 
 // low-level metadata write
-int md_write(struct md *md, unsigned nr, const void *data)
+int md_write(struct md *md, uint64_t nr, const void *data)
 {
 	if (nr >= md->blocks)
 	{
 		error(0, "can't write meta-data device: "
 		         "block number exceeds total blocks: "
-		         "%u >= %u", nr, md->blocks);
+		         "%llu >= %llu",
+		         (long long unsigned)nr,
+		         (long long unsigned)md->blocks);
 		return -1;
 	}
 
