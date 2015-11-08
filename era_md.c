@@ -122,7 +122,7 @@ void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor)
 	struct generic_node *node;
 
 	// most used case: block already in cache
-	if ((flags & MD_CACHED) && nr < md->offset_allocated &&
+	if (flags & MD_CACHED && nr < md->offset_allocated &&
 	    md->offset[nr] != 0xffffffff)
 		return md->cache + MD_BLOCK_SIZE * md->offset[nr];
 
@@ -135,15 +135,15 @@ void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor)
 		if (md_read(md, nr, node))
 			return NULL;
 
-		// check crc
+		// check checksum
 		if (!(flags & MD_NOCRC))
 		{
 			uint32_t csum = crc_update(0xffffffff, node->data,
 			                           sizeof(node->data)) ^ xor;
 			if (csum != le32toh(node->csum))
 			{
-				fprintf(stderr, "bad block checksum: %llu\n",
-				        (long long unsigned)nr);
+				fprintf(stderr, "bad block checksum: %u\n",
+				        nr);
 				return NULL;
 			}
 		}
@@ -181,15 +181,14 @@ void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor)
 	if (md_read(md, nr, node))
 		return NULL;
 
-	// check crc
+	// check checksum
 	if (!(flags & MD_NOCRC))
 	{
 		uint32_t csum = crc_update(0xffffffff, node->data,
 		                           sizeof(node->data)) ^ xor;
 		if (csum != le32toh(node->csum))
 		{
-			fprintf(stderr, "bad block checksum: %llu\n",
-			        (long long unsigned)nr);
+			fprintf(stderr, "bad block checksum: %u\n", nr);
 			return NULL;
 		}
 	}
@@ -203,8 +202,7 @@ void *md_block(struct md *md, int flags, unsigned nr, uint32_t xor)
 		while (nr >= new_alloc)
 			new_alloc <<= 1;
 
-		new_offset = realloc(md->offset,
-		                     sizeof(unsigned) * new_alloc);
+		new_offset = realloc(md->offset, sizeof(unsigned) * new_alloc);
 
 		if (new_offset == NULL)
 		{
@@ -251,6 +249,14 @@ void md_close(struct md *md)
 // low-level metadata read
 int md_read(struct md *md, unsigned nr, void *data)
 {
+	if (nr >= md->blocks)
+	{
+		fprintf(stderr, "can't read meta-data device: "
+		        "block number exceeds total blocks: "
+		        "%u >= %u\n", nr, md->blocks);
+		return -1;
+	}
+
 	if (pread(md->fd, data, MD_BLOCK_SIZE,
 	          nr * MD_BLOCK_SIZE) != MD_BLOCK_SIZE)
 	{
@@ -265,6 +271,14 @@ int md_read(struct md *md, unsigned nr, void *data)
 // low-level metadata write
 int md_write(struct md *md, unsigned nr, const void *data)
 {
+	if (nr >= md->blocks)
+	{
+		fprintf(stderr, "can't write meta-data device: "
+		        "block number exceeds total blocks: "
+		        "%u >= %u\n", nr, md->blocks);
+		return -1;
+	}
+
 	if (pwrite(md->fd, data, MD_BLOCK_SIZE,
 	           nr * MD_BLOCK_SIZE) != MD_BLOCK_SIZE)
 	{

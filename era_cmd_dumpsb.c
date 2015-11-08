@@ -9,8 +9,11 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <unistd.h>
+
 #include "era.h"
 #include "era_md.h"
+//#include "era_sm.h"
 #include "era_btree.h"
 
 // verbose printf macro
@@ -172,14 +175,15 @@ static int era_array_cb(unsigned size, void *dummy, void *data)
  * dump era array
  */
 
-static int dump_array(struct md *md, unsigned max, const char *prefix)
+static int dump_array(struct md *md, uint64_t root, unsigned max,
+                      const char *prefix)
 {
 	array = (struct array_state) {
 		.prefix = prefix,
 		.maximum = max,
 	};
 
-	if (era_array_walk(md, era_array_cb))
+	if (era_array_walk(md, root, era_array_cb, NULL))
 		return -1;
 
 	if (array.total < array.maximum)
@@ -304,15 +308,15 @@ static int bitset_cb(unsigned size, void *dummy, void *data)
  * dump era bitset
  */
 
-static int dump_bitset(struct md *md, unsigned max, const char *prefix,
-                       uint64_t root)
+static int dump_bitset(struct md *md, uint64_t root, unsigned max,
+                       const char *prefix)
 {
 	bitset = (struct bitset_state) {
 		.prefix = prefix,
 		.maximum = max
 	};
 
-	if (era_bitset_walk(md, root, bitset_cb) == -1)
+	if (era_bitset_walk(md, root, bitset_cb, NULL) == -1)
 		return -1;
 
 	if (bitset.total < bitset.maximum)
@@ -383,7 +387,7 @@ static int era_writeset_cb(unsigned size, void *k, void *v)
 			return -1;
 		}
 
-		if (dump_bitset(writeset.md, bits, spaces, root) == -1)
+		if (dump_bitset(writeset.md, root, bits, spaces) == -1)
 			return -1;
 
 		printf("%s</writeset>\n", writeset.prefix);
@@ -396,7 +400,8 @@ static int era_writeset_cb(unsigned size, void *k, void *v)
  * dump writeset tree
  */
 
-static int dump_writeset(struct md *md, unsigned max, const char *prefix)
+static int dump_writeset(struct md *md, uint64_t root, unsigned max,
+                         const char *prefix)
 {
 	void *keys_buffer = malloc(MD_BLOCK_SIZE);
 	void *vals_buffer = malloc(MD_BLOCK_SIZE);
@@ -420,7 +425,7 @@ static int dump_writeset(struct md *md, unsigned max, const char *prefix)
 		.md      = md
 	};
 
-	rc = era_writeset_walk(md, era_writeset_cb);
+	rc = era_writeset_walk(md, root, era_writeset_cb, NULL);
 
 	free(vals_buffer);
 	free(keys_buffer);
@@ -434,10 +439,12 @@ static int dump_writeset(struct md *md, unsigned max, const char *prefix)
 
 int era_dumpsb(int argc, char **argv)
 {
+	unsigned char *refcnt;
 	struct era_superblock *sb;
 	struct disk_sm_root *sm;
 	unsigned nr_blocks;
 	struct md *md;
+	uint64_t root;
 
 	if (argc == 0)
 	{
@@ -470,7 +477,7 @@ int era_dumpsb(int argc, char **argv)
 
 	sm = (struct disk_sm_root *)sb->metadata_space_map_root;
 
-	printf("\n--- spacemap ------------------------------------------------\n");
+	printf("\n--- spacemap root -------------------------------------------\n");
 	display_spacemap(sm);
 
 	if (verbose < 2)
@@ -502,7 +509,7 @@ int era_dumpsb(int argc, char **argv)
 
 		printf("  <current_writeset bits=\"%u\">\n", bits);
 
-		if (dump_bitset(md, bits, "    ", root))
+		if (dump_bitset(md, root, bits, "    "))
 			goto out;
 
 		printf("  </current_writeset>\n");
@@ -512,9 +519,14 @@ int era_dumpsb(int argc, char **argv)
 	 * dump archived writesets
 	 */
 
+	sb = md_block(md, MD_CACHED, 0, SUPERBLOCK_CSUM_XOR);
+	if (sb == NULL)
+		return -1;
+
 	printf("  <writeset_tree>\n");
 
-	if (dump_writeset(md, nr_blocks, "    "))
+	root = le64toh(sb->writeset_tree_root);
+	if (dump_writeset(md, root, nr_blocks, "    "))
 		goto out;
 
 	printf("  </writeset_tree>\n");
@@ -523,14 +535,36 @@ int era_dumpsb(int argc, char **argv)
 	 * dump era_array
 	 */
 
+	sb = md_block(md, MD_CACHED, 0, SUPERBLOCK_CSUM_XOR);
+	if (sb == NULL)
+		return -1;
+
 	printf("  <era_array>\n");
 
-	if (dump_array(md, nr_blocks, "    "))
+	root = le64toh(sb->era_array_root);
+	if (dump_array(md, root, nr_blocks, "    "))
 		goto out;
 
 	printf("  </era_array>\n");
 
 	printf("</superblock>\n");
+
+	/*
+	if (verbose < 2)
+		goto done;
+
+	printf("\n--- spacemap ------------------------------------------------\n");
+
+	refcnt = malloc(md->blocks);
+	if (refcnt == NULL)
+	{
+		fprintf(stderr, "not enough memory\n");
+		return -1;
+	}
+
+	era_spacemap_walk(md, 9, refcnt);
+	write(2, refcnt, md->blocks);
+	*/
 
 done:
 	md_close(md);

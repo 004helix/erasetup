@@ -35,8 +35,8 @@ struct md {
 	void     *buffer;            /* read buffer for non-cached ops */
 
 	void     *cache;             /* read buffers for cached ops */
-	unsigned  cache_allocated;   /* allocated cache blocks */
 	unsigned  cache_used;        /* used cache blocks */
+	unsigned  cache_allocated;   /* allocated cache blocks */
 
 	unsigned *offset;            /* cache offsets */
 	unsigned  offset_allocated;  /* cache offsets size */

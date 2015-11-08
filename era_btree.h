@@ -14,10 +14,8 @@ enum leaf_type {
 	LEAF_WRITESET = 3
 };
 
-#define BTREE_CSUM_XOR      121107
-#define ARRAY_CSUM_XOR      595846735
-#define SM_INDEX_CSUM_XOR   160478
-#define SM_BITMAP_CSUM_XOR  240779
+#define BTREE_CSUM_XOR 121107
+#define ARRAY_CSUM_XOR 595846735
 
 enum node_flags {
 	INTERNAL_NODE = 1,
@@ -53,13 +51,16 @@ struct array_node {
 	__u8 values[0];
 } __attribute__ ((packed));
 
-int era_array_walk(struct md *md,
-                   int (*cb)(unsigned size, void *keys, void *values));
+int era_array_walk(struct md *md, uint64_t root,
+                   int (*datacb)(unsigned size, void *keys, void *values),
+                   int (*blockcb)(unsigned nr, void *block));
 
 int era_bitset_walk(struct md *md, uint64_t root,
-                    int (*cb)(unsigned size, void *keys, void *values));
+                    int (*datacb)(unsigned size, void *keys, void *values),
+                    int (*blockcb)(unsigned nr, void *block));
 
-int era_writeset_walk(struct md *md,
-                      int (*cb)(unsigned size, void *keys, void *values));
+int era_writeset_walk(struct md *md, uint64_t root,
+                      int (*datacb)(unsigned size, void *keys, void *values),
+                      int (*blockcb)(unsigned nr, void *block));
 
 #endif
