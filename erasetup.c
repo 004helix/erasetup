@@ -214,6 +214,9 @@ int main(int argc, char **argv)
 	if (!strcmp(cmd, "open"))
 		return era_open(argc - optind, &argv[optind]) ? 1 : 0;
 
+	if (!strcmp(cmd, "close"))
+		return era_close(argc - optind, &argv[optind]) ? 1 : 0;
+
 	error(0, "%s: unknown command: %s", argv[0], cmd);
 	usage(stderr, 1);
 	return 0;

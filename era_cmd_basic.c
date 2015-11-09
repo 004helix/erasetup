@@ -26,32 +26,6 @@
 #include "era_dm.h"
 #include "era_cmd_basic.h"
 
-static char uuid_raw[UUID_LEN];
-static char uuid[32 + UUID_LEN * 2];
-static char table[64];
-
-static int generate_uuid(void)
-{
-	int fd;
-
-	fd = open(RANDOM_DEVICE, O_RDONLY);
-	if (fd == -1)
-	{
-		error(errno, "can't open rand device %s", RANDOM_DEVICE);
-		return -1;
-	}
-
-	if (read(fd, uuid_raw, sizeof(uuid_raw)) != sizeof(uuid_raw))
-	{
-		error(errno, "can't read rand device %s", RANDOM_DEVICE);
-		return -1;
-	}
-
-	close(fd);
-
-	return 0;
-}
-
 static int parse_chunk(const char *str)
 {
 	long long chunk;
@@ -173,7 +147,7 @@ static int clear_metadata(struct md *md, const char *device)
 }
 
 static int blkstat(const char *device,
-                   unsigned *maj, unsigned *min, uint64_t *sectors)
+                   unsigned *major, unsigned *minor, uint64_t *sectors)
 {
 	struct stat st;
 	uint64_t size;
@@ -210,26 +184,23 @@ static int blkstat(const char *device,
 	close(fd);
 
 	*sectors = size / SECTOR_SIZE;
-
-	*maj = major(st.st_rdev);
-	*min = minor(st.st_rdev);
+	*major = major(st.st_rdev);
+	*minor = minor(st.st_rdev);
 
 	return 0;
 }
 
 int era_create(int argc, char **argv)
 {
-	char *name, *meta, *data, *liner;
-	unsigned liner_major, liner_minor;
+	char table[64], uuid[64];
+	char *name, *meta, *data, *orig;
+	unsigned orig_major, orig_minor;
 	unsigned meta_major, meta_minor;
 	unsigned data_major, data_minor;
-	struct era_dm_info li;
+	struct era_dm_info orig_info;
 	uint64_t sectors;
 	struct md *md;
 	int chunk;
-
-	if (generate_uuid())
-		return -1;
 
 	/*
 	 * check and save arguments
@@ -266,14 +237,14 @@ int era_create(int argc, char **argv)
 	meta = argv[1];
 	data = argv[2];
 
-	liner = malloc(16 + strlen(data));
-	if (liner == NULL)
+	orig = malloc(16 + strlen(data));
+	if (orig == NULL)
 	{
 		error(ENOMEM, NULL);
 		return -1;
 	}
 
-	sprintf(liner, "%s-data", name);
+	sprintf(orig, "%s-orig", name);
 
 	/*
 	 * stat data device
@@ -283,81 +254,105 @@ int era_create(int argc, char **argv)
 		goto out;
 
 	/*
-	 * clear metadata device
+	 * open metadata device
 	 */
 
 	md = md_open(meta, 1);
 	if (md == NULL)
 		goto out;
 
-	if (clear_metadata(md, meta))
+	meta_major = md->major;
+	meta_minor = md->minor;
+
+	/*
+	 * create empty era target
+	 */
+
+	snprintf(uuid, sizeof(uuid), "%s%u-%u",
+	         UUID_PREFIX, meta_major, meta_minor);
+
+	if (era_dm_create_empty(name, uuid, NULL))
 	{
 		md_close(md);
 		goto out;
 	}
 
-	meta_major = md->major;
-	meta_minor = md->minor;
+	/*
+	 * clear and close metadata
+	 */
+
+	if (clear_metadata(md, meta))
+	{
+		(void)era_dm_remove(name);
+		md_close(md);
+		goto out;
+	}
 
 	md_close(md);
 
 	/*
-	 * create liner target
+	 * create origin target
 	 */
 
-	snprintf(uuid, sizeof(uuid), "%s%s-data",
-	         UUID_PREFIX, uuid2str(uuid_raw));
+	snprintf(uuid, sizeof(uuid), "%s%u-%u-orig",
+	         UUID_PREFIX, meta_major, meta_minor);
 
-	snprintf(table, sizeof(table), "%u:%u 0", data_major, data_minor);
+	snprintf(table, sizeof(table), "%u:%u 0",
+	         data_major, data_minor);
 
-	if (era_dm_create(liner, uuid, sectors,
-	                  TARGET_LINEAR, table, &li) == -1)
-		goto out;
-
-	liner_major = (unsigned)li.major;
-	liner_minor = (unsigned)li.minor;
-
-	/*
-	 * create era target
-	 */
-
-	snprintf(uuid, sizeof(uuid), "%s%s",
-	         UUID_PREFIX, uuid2str(uuid_raw));
-
-	snprintf(table, sizeof(table), "%u:%u %u:%u %d",
-	         meta_major, meta_minor, liner_major, liner_minor, chunk);
-
-	if (era_dm_create(name, uuid, sectors,
-	                  TARGET_ERA, table, NULL))
+	if (era_dm_create(orig, uuid, 0, sectors,
+	                  TARGET_LINEAR, table, &orig_info) == -1)
 	{
-		(void)era_dm_remove(liner);
+		(void)era_dm_remove(name);
 		goto out;
 	}
 
-	free(liner);
+	orig_major = (unsigned)orig_info.major;
+	orig_minor = (unsigned)orig_info.minor;
+
+	/*
+	 * load and resume era target
+	 */
+
+	snprintf(table, sizeof(table), "%u:%u %u:%u %d",
+	         meta_major, meta_minor, orig_major, orig_minor, chunk);
+
+	if (era_dm_load(name, 0, sectors, TARGET_ERA, table, NULL))
+	{
+		(void)era_dm_remove(orig);
+		(void)era_dm_remove(name);
+		goto out;
+	}
+
+	if (era_dm_resume(name))
+	{
+		(void)era_dm_remove(orig);
+		(void)era_dm_remove(name);
+		goto out;
+	}
+
+	free(orig);
 	return 0;
 
 out:
-	free(liner);
+	free(orig);
 	return -1;
 }
 
 int era_open(int argc, char **argv)
 {
-	char *name, *meta, *data, *liner;
-	unsigned liner_major, liner_minor;
+	char table[64], uuid[64];
+	char *name, *meta, *data, *orig;
+	unsigned orig_major, orig_minor;
 	unsigned meta_major, meta_minor;
 	unsigned data_major, data_minor;
+	struct era_dm_info orig_info;
 	struct era_superblock *sb;
-	struct era_dm_info li;
+	uint32_t nr_blocks;
 	uint64_t sectors;
-	uint32_t blocks;
 	unsigned chunks;
 	struct md *md;
 	int chunk;
-
-	if (generate_uuid())
-		return -1;
 
 	/*
 	 * check and save arguments
@@ -385,14 +380,14 @@ int era_open(int argc, char **argv)
 	meta = argv[1];
 	data = argv[2];
 
-	liner = malloc(16 + strlen(data));
-	if (liner == NULL)
+	orig = malloc(16 + strlen(data));
+	if (orig == NULL)
 	{
 		error(ENOMEM, NULL);
 		return -1;
 	}
 
-	sprintf(liner, "%s-orig", name);
+	sprintf(orig, "%s-orig", name);
 
 	/*
 	 * stat data device
@@ -402,7 +397,7 @@ int era_open(int argc, char **argv)
 		goto out;
 
 	/*
-	 * read, check and fix metadata device
+	 * open metadata device
 	 */
 
 	md = md_open(meta, 1);
@@ -417,68 +412,105 @@ int era_open(int argc, char **argv)
 	}
 
 	chunk = (int)le32toh(sb->data_block_size);
-	blocks = le32toh(sb->nr_blocks);
+	nr_blocks = le32toh(sb->nr_blocks);
 
-	if (era_spacemap_rebuild(md))
+	meta_major = md->major;
+	meta_minor = md->minor;
+
+	/*
+	 * create empty era target
+	 */
+
+	snprintf(uuid, sizeof(uuid), "%s%u-%u",
+	         UUID_PREFIX, meta_major, meta_minor);
+
+	if (era_dm_create_empty(name, uuid, NULL))
 	{
 		md_close(md);
 		goto out;
 	}
 
-	meta_major = md->major;
-	meta_minor = md->minor;
+	/*
+	 * rebuild spacemap
+	 */
+
+	if (era_spacemap_rebuild(md))
+	{
+		(void)era_dm_remove(name);
+		md_close(md);
+		goto out;
+	}
 
 	md_close(md);
 
+	/*
+	 * check nr_blocks
+	 */
+
 	chunks = (unsigned)((sectors + chunk - 1) / chunk);
-	if (!force && chunks != (unsigned)blocks)
+	if (!force && chunks != (unsigned)nr_blocks)
 	{
+		(void)era_dm_remove(name);
 		error(0, "can't open era device: data device resized\n"
 		         "  chunk size: %i bytes\n"
 		         "  total chunks: %u\n"
 		         "  chunks on %s: %u",
-		         chunk * SECTOR_SIZE, (unsigned)blocks,
+		         chunk * SECTOR_SIZE,
+		         (unsigned)nr_blocks,
 		         data, chunks);
 		goto out;
 	}
 
 	/*
-	 * create liner target
+	 * create orig target
 	 */
 
-	snprintf(uuid, sizeof(uuid), "%s%s-orig",
-	         UUID_PREFIX, uuid2str(uuid_raw));
+	snprintf(uuid, sizeof(uuid), "%s%u-%u-orig",
+	         UUID_PREFIX, meta_major, meta_minor);
 
 	snprintf(table, sizeof(table), "%u:%u 0", data_major, data_minor);
 
-	if (era_dm_create(liner, uuid, sectors,
-	                  TARGET_LINEAR, table, &li) == -1)
-		goto out;
-
-	liner_major = (unsigned)li.major;
-	liner_minor = (unsigned)li.minor;
-
-	/*
-	 * create era target
-	 */
-
-	snprintf(uuid, sizeof(uuid), "%s%s",
-	         UUID_PREFIX, uuid2str(uuid_raw));
-
-	snprintf(table, sizeof(table), "%u:%u %u:%u %d",
-	         meta_major, meta_minor, liner_major, liner_minor, chunk);
-
-	if (era_dm_create(name, uuid, sectors,
-	                  TARGET_ERA, table, NULL))
+	if (era_dm_create(orig, uuid, 0, sectors,
+	                  TARGET_LINEAR, table, &orig_info) == -1)
 	{
-		(void)era_dm_remove(liner);
+		(void)era_dm_remove(name);
 		goto out;
 	}
 
-	free(liner);
+	orig_major = (unsigned)orig_info.major;
+	orig_minor = (unsigned)orig_info.minor;
+
+	/*
+	 * load and resume era target
+	 */
+
+	snprintf(table, sizeof(table), "%u:%u %u:%u %d",
+	         meta_major, meta_minor, orig_major, orig_minor, chunk);
+
+	if (era_dm_load(name, 0, sectors, TARGET_ERA, table, NULL))
+	{
+		(void)era_dm_remove(orig);
+		(void)era_dm_remove(name);
+		goto out;
+	}
+
+	if (era_dm_resume(name))
+	{
+		(void)era_dm_remove(orig);
+		(void)era_dm_remove(name);
+		goto out;
+	}
+
+	free(orig);
 	return 0;
 
 out:
-	free(liner);
+	free(orig);
+	return -1;
+}
+
+int era_close(int argc, char **argv)
+{
+	era_dm_list();
 	return -1;
 }

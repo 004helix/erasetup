@@ -15,21 +15,29 @@
 /* truncated dm_info */
 struct era_dm_info {
 	int32_t open_count;
+	uint32_t target_count;
 	uint32_t major;
 	uint32_t minor;
 };
 
-/* init device mapper library */
+/* init / release device mapper library */
 void era_dm_init(void);
+void era_dm_exit(void);
 
 /* create a device with the given name + uuid and load target + table */
 int era_dm_create(const char *name, const char *uuid,
-                  uint64_t size, const char *target, const char *table,
+                  uint64_t start, uint64_t size,
+                  const char *target, const char *table,
                   struct era_dm_info *info);
+
+/* create a empty device with the given name + uuid */
+int era_dm_create_empty(const char *name, const char *uuid,
+                        struct era_dm_info *info);
 
 /* load new target + table into the inactive table slot */
 int era_dm_load(const char *name,
-                uint64_t size, const char *target, const char *table,
+                uint64_t start, uint64_t size,
+                const char *target, const char *table,
                 struct era_dm_info *info);
 
 /* suspend device */
@@ -43,5 +51,8 @@ int era_dm_remove(const char *name);
 
 /* destroy the table in the inactive table slot */
 int era_dm_clear(const char *name);
+
+/* list era devices */
+int era_dm_list(void);
 
 #endif
