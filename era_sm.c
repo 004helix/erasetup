@@ -484,7 +484,7 @@ int era_spacemap_rebuild(struct md *md)
 	if (total != nr_blocks)
 	{
 		error(0, "era_array elements mismatch: "
-		         "expacted %u, but got %u",
+		         "expected %u, but got %u",
 		         nr_blocks, total);
 		goto out;
 	}
