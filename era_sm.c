@@ -26,6 +26,13 @@ static inline int test_bit(unsigned long nr, unsigned long *bitmap)
 	return (bitmap[offset] >> bit) & 1;
 }
 
+static inline void set_bit(unsigned long nr, unsigned long *bitmap)
+{
+	unsigned long offset = nr / BITS_PER_LONG;
+	unsigned long bit = nr & (BITS_PER_LONG - 1);
+	bitmap[offset] |= 1UL << bit;
+}
+
 static inline int test_and_set_bit(unsigned long nr, unsigned long *bitmap)
 {
 	unsigned long offset = nr / BITS_PER_LONG;
@@ -33,13 +40,6 @@ static inline int test_and_set_bit(unsigned long nr, unsigned long *bitmap)
 	int rc = (bitmap[offset] >> bit) & 1;
 	bitmap[offset] |= 1UL << bit;
 	return rc;
-}
-
-static inline void set_bit(unsigned long nr, unsigned long *bitmap)
-{
-	unsigned long offset = nr / BITS_PER_LONG;
-	unsigned long bit = nr & (BITS_PER_LONG - 1);
-	bitmap[offset] |= 1UL << bit;
 }
 
 static unsigned long first_unset_bit(unsigned long size, unsigned long *bitmap)
@@ -68,7 +68,7 @@ static unsigned long first_unset_bit(unsigned long size, unsigned long *bitmap)
 static int bitmap_cb(void *arg, uint64_t blocknr, void *block)
 {
 	unsigned long *bitmap = arg;
-	if (test_and_set_bit(blocknr, bitmap))
+	if (test_and_set_bit((unsigned long)blocknr, bitmap))
 	{
 		error(0, "block %llu already in use",
 		         (long long unsigned)blocknr);
@@ -213,6 +213,7 @@ static int era_spacemap_write(struct md *md, unsigned long *bitmap,
 	bm_blocks = (md->blocks + ENTRIES_PER_BLOCK - 1) / ENTRIES_PER_BLOCK;
 	if (bm_blocks >= MAX_METADATA_BITMAPS)
 	{
+	
 		error(0, "metadata is too large");
 		goto out;
 	}
@@ -510,7 +511,7 @@ int era_spacemap_rebuild(struct md *md)
 		goto out;
 
 	// drop metadata snapshot (not supported for now)
-	sb->metadata_snap = htole64(0);
+	sb->metadata_snap = 0;
 
 	// save spacemap root
 	memset(sb->metadata_space_map_root, 0, SPACE_MAP_ROOT_SIZE);

@@ -509,8 +509,95 @@ out:
 	return -1;
 }
 
+#define MAX_UUID_SIZE 256
+#define MAX_NAME_SIZE 768
 int era_close(int argc, char **argv)
 {
-	era_dm_list();
+	char *name, *orig, *uuid;
+	struct era_dm_info info;
+
+	/*
+	 * check and save arguments
+	 */
+
+	switch (argc)
+	{
+	case 0:
+		error(0, "device name argument expected");
+		usage(stderr, 1);
+	case 1:
+		break;
+	default:
+		error(0, "unknown argument: %s", argv[1]);
+		usage(stderr, 1);
+	}
+
+	name = argv[0];
+
+	/*
+	 * allocate memory for name and uuid
+	 */
+
+	uuid = malloc(MAX_UUID_SIZE);
+	if (uuid == NULL)
+	{
+		error(ENOMEM, 0);
+		return -1;
+	}
+
+	orig = malloc(MAX_NAME_SIZE);
+	if (orig == NULL)
+	{
+		error(ENOMEM, 0);
+		free(orig);
+		return -1;
+	}
+
+	/*
+	 * check era device
+	 */
+
+	if (era_dm_info(name, NULL, &info,
+	                0, NULL, MAX_UUID_SIZE - 16, uuid))
+		goto out;
+
+	if (!info.exists)
+	{
+		error(0, "device does not exists: %s", name);
+		goto out;
+	}
+
+	/*
+	 * check orig device
+	 */
+
+	strcat(uuid, "-orig");
+
+	if (era_dm_info(NULL, uuid, &info,
+	                MAX_NAME_SIZE, orig, 0, NULL))
+	        goto out;
+
+	if (!info.exists)
+	{
+		error(0, "data device does not exists: %s", uuid);
+		goto out;
+	}
+
+	/*
+	 * remove era and orig devices
+	 */
+
+	if (era_dm_remove(name))
+		goto out;
+
+	if (era_dm_remove(orig))
+		goto out;
+
+	free(orig);
+	free(uuid);
+	return 0;
+out:
+	free(orig);
+	free(uuid);
 	return -1;
 }

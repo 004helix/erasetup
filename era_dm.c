@@ -61,8 +61,8 @@ static int _era_dm_table(int task, int wait,
 		if (!dm_task_get_info(dmt, &dmi))
 			goto out;
 
-		info->target_count = dmi.target_count;
 		info->open_count = dmi.open_count;
+		info->exists = dmi.exists;
 		info->major = dmi.major;
 		info->minor = dmi.minor;
 	}
@@ -145,6 +145,83 @@ int era_dm_remove(const char *name)
 int era_dm_clear(const char *name)
 {
 	return _era_dm_simple(DM_DEVICE_CLEAR, 0, name);
+}
+
+int era_dm_info(const char *name,
+                const char *uuid,
+                struct era_dm_info *info,
+                size_t name_size, char *name_ptr,
+                size_t uuid_size, char *uuid_ptr)
+{
+	struct dm_task *dmt;
+	struct dm_info dmi;
+	int rc = -1;
+
+	if (!(dmt = dm_task_create(DM_DEVICE_INFO)))
+		return -1;
+
+	if (name && !dm_task_set_name(dmt, name))
+		goto out;
+
+	if (uuid && !dm_task_set_uuid(dmt, uuid))
+		goto out;
+
+	if (!dm_task_run(dmt))
+		goto out;
+
+	if (!dm_task_get_info(dmt, &dmi))
+		goto out;
+
+	if (info)
+	{
+		info->open_count = dmi.open_count;
+		info->exists = dmi.exists;
+		info->major = dmi.major;
+		info->minor = dmi.minor;
+	}
+
+	if (dmi.exists && name_size > 0 && name_ptr)
+	{
+		const char *dm_name;
+		size_t dm_name_len;
+
+		dm_name = dm_task_get_name(dmt);
+		if (dm_name == NULL)
+			goto out;
+
+		dm_name_len = strlen(dm_name);
+		if (dm_name_len > name_size)
+		{
+			rc = dm_name_len + 1;
+			goto out;
+		}
+
+		strcpy(name_ptr, dm_name);
+	}
+
+	if (dmi.exists && uuid_size > 0 && uuid_ptr)
+	{
+		const char *dm_uuid;
+		size_t dm_uuid_len;
+
+		dm_uuid = dm_task_get_uuid(dmt);
+		if (dm_uuid == NULL)
+			goto out;
+
+		dm_uuid_len = strlen(dm_uuid);
+		if (dm_uuid_len > uuid_size)
+		{
+			dm_task_destroy(dmt);
+			return dm_uuid_len + 1;
+		}
+
+		strcpy(uuid_ptr, dm_uuid);
+	}
+
+	rc = 0;
+out:
+	dm_task_destroy(dmt);
+	return rc;
 }
 
 int era_dm_list(void)

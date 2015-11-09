@@ -14,10 +14,10 @@
 
 /* truncated dm_info */
 struct era_dm_info {
-	int32_t open_count;
-	uint32_t target_count;
+	int exists;
 	uint32_t major;
 	uint32_t minor;
+	int32_t open_count;
 };
 
 /* init / release device mapper library */
@@ -51,6 +51,13 @@ int era_dm_remove(const char *name);
 
 /* destroy the table in the inactive table slot */
 int era_dm_clear(const char *name);
+
+/* get info by name or uuid */
+int era_dm_info(const char *name,
+                const char *uuid,
+                struct era_dm_info *info,
+                size_t name_size, char *name_ptr,
+                size_t uuid_size, char *uuid_ptr);
 
 /* list era devices */
 int era_dm_list(void);
