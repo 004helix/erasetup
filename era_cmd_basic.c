@@ -452,12 +452,13 @@ int era_open(int argc, char **argv)
 	{
 		(void)era_dm_remove(name);
 		error(0, "can't open era device: data device resized\n"
-		         "  chunk size: %i bytes\n"
-		         "  total chunks: %u\n"
-		         "  chunks on %s: %u",
-		         chunk * SECTOR_SIZE,
+		         "  %u chunks in superblock\n"
+		         "  %u chunks in %s\n\n"
+		         "use \"--force\" option if you really resized data\n"
+		         "device and want to adjust era metadata device\n"
+		         "accordingly\n",
 		         (unsigned)nr_blocks,
-		         data, chunks);
+		         chunks, data);
 		goto out;
 	}
 
