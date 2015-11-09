@@ -238,7 +238,8 @@ static int era_spacemap_write(struct md *md, unsigned long *bitmap,
 	while (max_entries % 3)
 		max_entries--;
 
-	ref_count->header.nr_entries = htole32(0);
+	ref_count->header.flags = htole32(LEAF_NODE);
+	ref_count->header.nr_entries = 0;
 	ref_count->header.max_entries = htole32(max_entries);
 	ref_count->header.value_size = htole32(sizeof(uint32_t));
 
