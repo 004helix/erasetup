@@ -8,8 +8,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define SECTOR_SIZE 512
-
 #define UUID_PREFIX     "ERA-"
 #define TARGET_ERA      "era"
 #define TARGET_LINEAR   "linear"

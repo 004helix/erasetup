@@ -4,10 +4,8 @@
 
 #define _GNU_SOURCE
 
-#include <linux/fs.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <string.h>
 #include <stdlib.h>
@@ -19,67 +17,37 @@
 #include "crc32c.h"
 #include "era.h"
 #include "era_md.h"
+#include "era_blk.h"
 
 // open metadata device
 struct md *md_open(const char *device, int rw)
 {
-	uint64_t size;
-	struct stat st;
+	uint64_t sectors;
 	struct md *md;
-	int fd, flags;
-
-	flags = (rw ? O_RDWR : O_RDONLY) | O_DIRECT;
-
-	fd = open(device, flags);
-	if (fd == -1)
-	{
-		error(errno, "can't open device %s", device);
-		return NULL;
-	}
-
-	if (fstat(fd, &st) == -1)
-	{
-		error(errno, "can't stat device %s", device);
-		close(fd);
-		return NULL;
-	}
-
-	if (!S_ISBLK(st.st_mode))
-	{
-		error(0, "data device is not a block device");
-		close(fd);
-		return NULL;
-	}
-
-	if (ioctl(fd, BLKGETSIZE64, &size))
-	{
-		error(errno, "can't get device size %s", device);
-		close(fd);
-		return NULL;
-	}
 
 	md = malloc(sizeof(struct md));
 	if (md == NULL)
 	{
 		error(ENOMEM, NULL);
-		close(fd);
 		return NULL;
 	}
 
-	md->fd = fd;
-	md->size = size;
-	md->major = major(st.st_rdev);
-	md->minor = minor(st.st_rdev);
-	md->blocks = size / MD_BLOCK_SIZE;
+	md->fd = blkopen(device, rw, &md->major, &md->minor, &sectors);
+	if (md->fd == -1)
+	{
+		free(md);
+		return NULL;
+	}
+
+	md->size = sectors * SECTOR_SIZE;
+	md->blocks = md->size / MD_BLOCK_SIZE;
 
 	md->buffer = mmap(NULL, MD_BLOCK_SIZE, PROT_READ | PROT_WRITE,
 	                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (md->buffer == MAP_FAILED)
 	{
 		error(ENOMEM, NULL);
-		close(fd);
-		free(md);
-		return NULL;
+		goto out;
 	}
 
 	md->cache_allocated = 2;
@@ -89,9 +57,7 @@ struct md *md_open(const char *device, int rw)
 	{
 		error(ENOMEM, NULL);
 		munmap(md->buffer, MD_BLOCK_SIZE);
-		close(fd);
-		free(md);
-		return NULL;
+		goto out;
 	}
 
 	md->cache_used = 2;
@@ -103,14 +69,16 @@ struct md *md_open(const char *device, int rw)
 		error(ENOMEM, NULL);
 		munmap(md->cache, MD_BLOCK_SIZE * md->cache_allocated);
 		munmap(md->buffer, MD_BLOCK_SIZE);
-		close(fd);
-		free(md);
-		return NULL;
+		goto out;
 	}
 
 	md_flush(md);
 
 	return md;
+out:
+	close(md->fd);
+	free(md);
+	return NULL;
 }
 
 // read, check and possible cache metadata block

@@ -4,9 +4,7 @@
 
 #define _GNU_SOURCE
 
-#include <linux/fs.h>
 #include <sys/types.h>
-#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <stdlib.h>

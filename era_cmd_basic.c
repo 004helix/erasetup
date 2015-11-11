@@ -4,9 +4,7 @@
 
 #define _GNU_SOURCE
 
-#include <linux/fs.h>
 #include <sys/types.h>
-#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <stdlib.h>
@@ -24,6 +22,7 @@
 #include "era_md.h"
 #include "era_sm.h"
 #include "era_dm.h"
+#include "era_blk.h"
 #include "era_cmd_basic.h"
 
 static int parse_chunk(const char *str)
@@ -146,50 +145,6 @@ static int clear_metadata(struct md *md, const char *device)
 	return 0;
 }
 
-static int blkstat(const char *device,
-                   unsigned *major, unsigned *minor, uint64_t *sectors)
-{
-	struct stat st;
-	uint64_t size;
-	int fd;
-
-	fd = open(device, O_RDONLY | O_DIRECT);
-	if (fd == -1)
-	{
-		error(errno, "can't open device %s", device);
-		return -1;
-	}
-
-	if (fstat(fd, &st) == -1)
-	{
-		error(errno, "can't stat device %s", device);
-		close(fd);
-		return -1;
-	}
-
-	if (!S_ISBLK(st.st_mode))
-	{
-		error(0, "device is not a block device: %s", device);
-		close(fd);
-		return -1;
-	}
-
-	if (ioctl(fd, BLKGETSIZE64, &size))
-	{
-		error(errno, "can't get device size %s", device);
-		close(fd);
-		return -1;
-	}
-
-	close(fd);
-
-	*sectors = size / SECTOR_SIZE;
-	*major = major(st.st_rdev);
-	*minor = minor(st.st_rdev);
-
-	return 0;
-}
-
 int era_create(int argc, char **argv)
 {
 	char table[64], uuid[64];
@@ -201,6 +156,7 @@ int era_create(int argc, char **argv)
 	uint64_t sectors;
 	struct md *md;
 	int chunk;
+	int fd;
 
 	/*
 	 * check and save arguments
@@ -250,8 +206,11 @@ int era_create(int argc, char **argv)
 	 * stat data device
 	 */
 
-	if (blkstat(data, &data_major, &data_minor, &sectors))
+	fd = blkopen(data, 0, &data_major, &data_minor, &sectors);
+	if (fd == -1)
 		goto out;
+
+	close(fd);
 
 	/*
 	 * open metadata device
@@ -353,6 +312,7 @@ int era_open(int argc, char **argv)
 	unsigned chunks;
 	struct md *md;
 	int chunk;
+	int fd;
 
 	/*
 	 * check and save arguments
@@ -393,8 +353,11 @@ int era_open(int argc, char **argv)
 	 * stat data device
 	 */
 
-	if (blkstat(data, &data_major, &data_minor, &sectors))
+	fd = blkopen(data, 0, &data_major, &data_minor, &sectors);
+	if (fd == -1)
 		goto out;
+
+	close(fd);
 
 	/*
 	 * open metadata device
