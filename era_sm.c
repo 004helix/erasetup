@@ -181,7 +181,7 @@ static int era_spacemap_write(struct md *md, unsigned long *bitmap,
 	uint64_t nr_allocated;
 	uint32_t csum;
 	unsigned max_entries;
-	unsigned bm_blocks;
+	uint64_t bm_blocks;
 	unsigned i;
 
 	/*
