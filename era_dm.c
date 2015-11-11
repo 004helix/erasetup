@@ -14,7 +14,6 @@
 void era_dm_init(void)
 {
 	dm_lib_init();
-	dm_set_uuid_prefix(UUID_PREFIX);
 }
 
 void era_dm_exit(void)
@@ -23,11 +22,11 @@ void era_dm_exit(void)
 	dm_lib_exit();
 }
 
-static int _era_dm_table(int task, int wait,
-                         const char *name, const char *uuid,
-                         uint64_t start, uint64_t size,
-                         const char *target, const char *table,
-                         struct era_dm_info *info)
+static int _dm_create(int task, int wait,
+                      const char *name, const char *uuid,
+                      uint64_t start, uint64_t length,
+                      const char *target, const char *table,
+                      struct era_dm_info *info)
 {
 	struct dm_task *dmt;
 	uint32_t cookie = 0;
@@ -43,7 +42,7 @@ static int _era_dm_table(int task, int wait,
 		goto out;
 
 	if (target != NULL &&
-	    !dm_task_add_target(dmt, start, size, target, table))
+	    !dm_task_add_target(dmt, start, length, target, table))
 		goto out;
 
 	if (wait && !dm_task_set_cookie(dmt, &cookie, 0))
@@ -61,6 +60,7 @@ static int _era_dm_table(int task, int wait,
 		if (!dm_task_get_info(dmt, &dmi))
 			goto out;
 
+		info->target_count = dmi.target_count;
 		info->open_count = dmi.open_count;
 		info->exists = dmi.exists;
 		info->major = dmi.major;
@@ -75,7 +75,7 @@ out:
 	return -1;
 }
 
-static int _era_dm_simple(int task, int wait, const char *name)
+static int _dm_simple(int task, int wait, const char *name)
 {
 	struct dm_task *dmt;
 	uint32_t cookie = 0;
@@ -105,46 +105,46 @@ out:
 int era_dm_create_empty(const char *name, const char *uuid,
                         struct era_dm_info *info)
 {
-	return _era_dm_table(DM_DEVICE_CREATE, 0, name, uuid,
-	                     0, 0, NULL, NULL, info);
+	return _dm_create(DM_DEVICE_CREATE, 0, name, uuid,
+	                  0, 0, NULL, NULL, info);
 }
 
 int era_dm_create(const char *name, const char *uuid,
-                  uint64_t start, uint64_t size,
+                  uint64_t start, uint64_t length,
                   const char *target, const char *table,
                   struct era_dm_info *info)
 {
-	return _era_dm_table(DM_DEVICE_CREATE, 1, name, uuid,
-	                     start, size, target, table, info);
+	return _dm_create(DM_DEVICE_CREATE, 1, name, uuid,
+	                  start, length, target, table, info);
 }
 
 int era_dm_load(const char *name,
-                uint64_t start, uint64_t size,
+                uint64_t start, uint64_t length,
                 const char *target, const char *table,
                 struct era_dm_info *info)
 {
-	return _era_dm_table(DM_DEVICE_RELOAD, 0, name, NULL,
-	                     start, size, target, table, info);
+	return _dm_create(DM_DEVICE_RELOAD, 0, name, NULL,
+	                  start, length, target, table, info);
 }
 
 int era_dm_suspend(const char *name)
 {
-	return _era_dm_simple(DM_DEVICE_SUSPEND, 0, name);
+	return _dm_simple(DM_DEVICE_SUSPEND, 0, name);
 }
 
 int era_dm_resume(const char *name)
 {
-	return _era_dm_simple(DM_DEVICE_RESUME, 1, name);
+	return _dm_simple(DM_DEVICE_RESUME, 1, name);
 }
 
 int era_dm_remove(const char *name)
 {
-	return _era_dm_simple(DM_DEVICE_REMOVE, 1, name);
+	return _dm_simple(DM_DEVICE_REMOVE, 1, name);
 }
 
 int era_dm_clear(const char *name)
 {
-	return _era_dm_simple(DM_DEVICE_CLEAR, 0, name);
+	return _dm_simple(DM_DEVICE_CLEAR, 0, name);
 }
 
 int era_dm_info(const char *name,
@@ -174,6 +174,7 @@ int era_dm_info(const char *name,
 
 	if (info)
 	{
+		info->target_count = dmi.target_count;
 		info->open_count = dmi.open_count;
 		info->exists = dmi.exists;
 		info->major = dmi.major;
@@ -190,7 +191,7 @@ int era_dm_info(const char *name,
 			goto out;
 
 		dm_name_len = strlen(dm_name);
-		if (dm_name_len > name_size)
+		if (dm_name_len >= name_size)
 		{
 			rc = dm_name_len + 1;
 			goto out;
@@ -209,7 +210,7 @@ int era_dm_info(const char *name,
 			goto out;
 
 		dm_uuid_len = strlen(dm_uuid);
-		if (dm_uuid_len > uuid_size)
+		if (dm_uuid_len >= uuid_size)
 		{
 			dm_task_destroy(dmt);
 			return dm_uuid_len + 1;
@@ -222,6 +223,84 @@ int era_dm_info(const char *name,
 out:
 	dm_task_destroy(dmt);
 	return rc;
+}
+
+static int _first_status(int task,
+                         const char *name,
+                         const char *uuid,
+                         uint64_t *start, uint64_t *length,
+                         size_t target_size, char *target_ptr,
+                         size_t params_size, char *params_ptr)
+{
+	struct dm_task *dmt;
+	struct dm_info dmi;
+	char *tgt, *prm;
+	int rc = -1;
+
+	if (!(dmt = dm_task_create(task)))
+		return -1;
+
+	if (name && !dm_task_set_name(dmt, name))
+		goto out;
+
+	if (uuid && !dm_task_set_uuid(dmt, uuid))
+		goto out;
+
+	if (!dm_task_run(dmt))
+		goto out;
+
+	if (!dm_task_get_info(dmt, &dmi))
+		goto out;
+
+	if (!dmi.exists)
+	{
+		error(0, "target %s does not exists",
+		      name ? name : (uuid ? uuid : "<NULL>"));
+		goto out;
+	}
+
+	(void)dm_get_next_target(dmt, NULL, start, length, &tgt, &prm);
+
+	if (target_size > 0 && target_ptr)
+	{
+		if (strlen(tgt) >= target_size)
+			goto out;
+
+		strcpy(target_ptr, tgt);
+	}
+
+	if (params_size > 0 && params_ptr)
+	{
+		if (strlen(prm) >= params_size)
+			goto out;
+
+		strcpy(params_ptr, prm);
+	}
+
+	rc = 0;
+out:
+	dm_task_destroy(dmt);
+	return rc;
+}
+
+int era_dm_first_table(const char *name,
+                       const char *uuid,
+                       uint64_t *start, uint64_t *length,
+                       size_t target_size, char *target_ptr,
+                       size_t params_size, char *params_ptr)
+{
+	return _first_status(DM_DEVICE_TABLE, name, uuid, start, length,
+	                     target_size, target_ptr, params_size, params_ptr);
+}
+
+int era_dm_first_status(const char *name,
+                        const char *uuid,
+                        uint64_t *start, uint64_t *length,
+                        size_t target_size, char *target_ptr,
+                        size_t params_size, char *params_ptr)
+{
+	return _first_status(DM_DEVICE_STATUS, name, uuid, start, length,
+	                     target_size, target_ptr, params_size, params_ptr);
 }
 
 int era_dm_list(void)

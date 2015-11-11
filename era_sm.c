@@ -211,9 +211,8 @@ static int era_spacemap_write(struct md *md, unsigned long *bitmap,
 	 */
 
 	bm_blocks = (md->blocks + ENTRIES_PER_BLOCK - 1) / ENTRIES_PER_BLOCK;
-	if (bm_blocks >= MAX_METADATA_BITMAPS)
+	if (bm_blocks > MAX_METADATA_BITMAPS)
 	{
-	
 		error(0, "metadata is too large");
 		goto out;
 	}
@@ -390,6 +389,18 @@ int era_spacemap_rebuild(struct md *md)
 	unsigned nr_blocks;
 	unsigned total;
 	uint32_t csum;
+
+	/*
+	 * check metadata size
+	 */
+
+	if (md->blocks > MAX_METADATA_BITMAPS * ENTRIES_PER_BLOCK)
+	{
+		md->blocks = MAX_METADATA_BITMAPS * ENTRIES_PER_BLOCK;
+		error(0, "Warning: metadata device is too big, "
+		         "only first %u MiB will be used",
+		         (unsigned)(md->blocks * MD_BLOCK_SIZE / 1048576));
+	}
 
 	/*
 	 * prepare spacemap bitmap

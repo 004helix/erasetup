@@ -62,13 +62,6 @@ struct era_superblock {
 	__le64 metadata_snap;
 } __attribute__ ((packed));
 
-struct disk_sm_root {
-	__le64 nr_blocks;
-	__le64 nr_allocated;
-	__le64 bitmap_root;
-	__le64 ref_count_root;
-} __attribute__ ((packed));
-
 int era_sb_check(struct era_superblock *sb);
 
 #endif

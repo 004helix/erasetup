@@ -510,12 +510,14 @@ out:
 	return -1;
 }
 
-#define MAX_UUID_SIZE 256
-#define MAX_NAME_SIZE 768
 int era_close(int argc, char **argv)
 {
-	char *name, *orig, *uuid;
 	struct era_dm_info info;
+	uint64_t start, length;
+	char target[128];
+	char orig[128];
+	char uuid[256];
+	char *name;
 
 	/*
 	 * check and save arguments
@@ -536,30 +538,11 @@ int era_close(int argc, char **argv)
 	name = argv[0];
 
 	/*
-	 * allocate memory for name and uuid
-	 */
-
-	uuid = malloc(MAX_UUID_SIZE);
-	if (uuid == NULL)
-	{
-		error(ENOMEM, 0);
-		return -1;
-	}
-
-	orig = malloc(MAX_NAME_SIZE);
-	if (orig == NULL)
-	{
-		error(ENOMEM, 0);
-		free(orig);
-		return -1;
-	}
-
-	/*
 	 * check era device
 	 */
 
 	if (era_dm_info(name, NULL, &info,
-	                0, NULL, MAX_UUID_SIZE - 16, uuid))
+	                0, NULL, sizeof(uuid) - 16, uuid))
 		goto out;
 
 	if (!info.exists)
@@ -575,12 +558,38 @@ int era_close(int argc, char **argv)
 	strcat(uuid, "-orig");
 
 	if (era_dm_info(NULL, uuid, &info,
-	                MAX_NAME_SIZE, orig, 0, NULL))
+	                sizeof(orig), orig, 0, NULL))
 	        goto out;
 
 	if (!info.exists)
 	{
 		error(0, "data device does not exists: %s", uuid);
+		goto out;
+	}
+
+	if (info.target_count > 1)
+	{
+		error(0, "too many targets in data device %s", uuid);
+		goto out;
+	}
+
+	if (era_dm_first_table(NULL, uuid, &start, &length,
+	                       sizeof(target), target, 0, NULL))
+	{
+		error(0, "cant get target or table for device %s", uuid);
+		goto out;
+	}
+
+	if (!strcmp(target, TARGET_ORIGIN))
+	{
+		error(0, "data device has snapshots, "
+		         "please remove them first");
+		goto out;
+	}
+
+	if (strcmp(target, TARGET_LINEAR))
+	{
+		error(0, "data device uses unknown target type");
 		goto out;
 	}
 
@@ -594,11 +603,7 @@ int era_close(int argc, char **argv)
 	if (era_dm_remove(orig))
 		goto out;
 
-	free(orig);
-	free(uuid);
 	return 0;
 out:
-	free(orig);
-	free(uuid);
 	return -1;
 }

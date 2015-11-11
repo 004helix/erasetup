@@ -8,6 +8,13 @@
 #define INDEX_CSUM_XOR 160478
 #define BITMAP_CSUM_XOR 240779
 
+struct disk_sm_root {
+	__le64 nr_blocks;
+	__le64 nr_allocated;
+	__le64 bitmap_root;
+	__le64 ref_count_root;
+} __attribute__ ((packed));
+
 struct disk_index_entry {
 	__le64 blocknr;
 	__le32 nr_free;

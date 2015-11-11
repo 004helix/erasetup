@@ -18,6 +18,7 @@ struct era_dm_info {
 	uint32_t major;
 	uint32_t minor;
 	int32_t open_count;
+	int32_t target_count;
 };
 
 /* init / release device mapper library */
@@ -58,6 +59,20 @@ int era_dm_info(const char *name,
                 struct era_dm_info *info,
                 size_t name_size, char *name_ptr,
                 size_t uuid_size, char *uuid_ptr);
+
+/* get table by name or uuid */
+int era_dm_first_table(const char *name,
+                       const char *uuid,
+                       uint64_t *start, uint64_t *length,
+                       size_t target_size, char *target_ptr,
+                       size_t params_size, char *params_ptr);
+
+/* get status by name or uuid */
+int era_dm_first_status(const char *name,
+                        const char *uuid,
+                        uint64_t *start, uint64_t *length,
+                        size_t target_size, char *target_ptr,
+                        size_t params_size, char *params_ptr);
 
 /* list era devices */
 int era_dm_list(void);
