@@ -10,4 +10,6 @@
 int blkopen(const char *device, int rw,
             unsigned *major, unsigned *minor, uint64_t *sectors);
 
+int blkopen2(unsigned major, unsigned minor, int rw, uint64_t *sectors);
+
 #endif

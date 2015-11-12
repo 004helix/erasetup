@@ -24,6 +24,7 @@
 
 #include "era_cmd_basic.h"
 #include "era_cmd_dumpsb.h"
+#include "era_cmd_snap.h"
 
 // verbose printf macro
 #define printvf(v, f, ...) \
@@ -54,10 +55,13 @@ void usage(FILE *out, int code)
 	fprintf(out, "Usage:\n\n"
 	"erasetup [-h|--help] [-v|--verbose] [-f|--force]\n"
 	"         <command> [command options]\n\n"
-	"         dumpsb <metadata-dev>\n"
 	"         create <name> <metadata-dev> <data-dev> [chunk-size]\n"
 	"         open <name> <metadata-dev> <data-dev>\n"
 	"         close <name>\n"
+	"         status <name>\n\n"
+	"         takesnap <name> <snapshot-name> <cow-dev>\n"
+	"         dropsnap <name> <snapshot-name>\n\n"
+	"         dumpsb <metadata-dev>\n"
 	"\n");
 	exit(code);
 }
@@ -214,6 +218,9 @@ int main(int argc, char **argv)
 
 	if (!strcmp(cmd, "close"))
 		return era_close(argc - optind, &argv[optind]) ? 1 : 0;
+
+	if (!strcmp(cmd, "takesnap"))
+		return era_takesnap(argc - optind, &argv[optind]) ? 1 : 0;
 
 	error(0, "%s: unknown command: %s", argv[0], cmd);
 	usage(stderr, 1);
