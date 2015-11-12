@@ -332,7 +332,7 @@ int era_open(int argc, char **argv)
 	case 3:
 		break;
 	default:
-		error(0, "unknown argument: %s", argv[4]);
+		error(0, "unknown argument: %s", argv[3]);
 		usage(stderr, 1);
 	}
 

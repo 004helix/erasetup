@@ -264,7 +264,10 @@ static int _first_status(int task,
 	if (target_size > 0 && target_ptr)
 	{
 		if (strlen(tgt) >= target_size)
+		{
+			error(0, "too long target name");
 			goto out;
+		}
 
 		strcpy(target_ptr, tgt);
 	}
@@ -272,7 +275,10 @@ static int _first_status(int task,
 	if (params_size > 0 && params_ptr)
 	{
 		if (strlen(prm) >= params_size)
+		{
+			error(0, "too long target params");
 			goto out;
+		}
 
 		strcpy(params_ptr, prm);
 	}
@@ -301,6 +307,32 @@ int era_dm_first_status(const char *name,
 {
 	return _first_status(DM_DEVICE_STATUS, name, uuid, start, length,
 	                     target_size, target_ptr, params_size, params_ptr);
+}
+
+int era_dm_message0(const char *name, const char *message)
+{
+	struct dm_task *dmt;
+	int rc = -1;
+
+	if (!(dmt = dm_task_create(DM_DEVICE_TARGET_MSG)))
+		return -1;
+
+	if (!dm_task_set_name(dmt, name))
+		goto out;
+
+	if (!dm_task_set_sector(dmt, 0))
+		goto out;
+
+	if (!dm_task_set_message(dmt, message))
+		goto out;
+
+	if (!dm_task_run(dmt))
+		goto out;
+
+	rc = 0;
+out:
+	dm_task_destroy(dmt);
+	return rc;
 }
 
 int era_dm_list(void)

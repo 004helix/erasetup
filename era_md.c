@@ -39,8 +39,8 @@ struct md *md_open(const char *device, int rw)
 		return NULL;
 	}
 
-	md->size = sectors * SECTOR_SIZE;
-	md->blocks = md->size / MD_BLOCK_SIZE;
+	md->sectors = sectors;
+	md->blocks = md->sectors / (MD_BLOCK_SIZE / SECTOR_SIZE);
 
 	md->buffer = mmap(NULL, MD_BLOCK_SIZE, PROT_READ | PROT_WRITE,
 	                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);

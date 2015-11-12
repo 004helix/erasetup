@@ -29,7 +29,7 @@ struct md {
 	int       fd;                /* device fd */
 	unsigned  major;             /* major device number */
 	unsigned  minor;             /* minor device number */
-	uint64_t  size;              /* device size in bytes */
+	uint64_t  sectors;           /* device size */
 	uint64_t  blocks;            /* metadata blocks */
 
 	void     *buffer;            /* read buffer for non-cached ops */

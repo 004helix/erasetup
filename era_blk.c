@@ -25,9 +25,9 @@ static int trypath(const char *path, unsigned major, unsigned minor)
 
 	if (stat(path, &st) != -1 && S_ISBLK(st.st_mode) &&
 	    major == major(st.st_rdev) && minor == minor(st.st_rdev))
-		return 1;
+		return 0;
 
-	return 0;
+	return -1;
 }
 
 static int findandopen(int dirfd, int rw, unsigned major, unsigned minor)
@@ -191,6 +191,9 @@ int blkopen(const char *device, int rw,
 int blkopen2(unsigned major, unsigned minor, int rw, uint64_t *sectors)
 {
 	char path[PATH_MAX];
+	char buffer[4096];
+	char *line, *end;
+	size_t size;
 	int fd;
 
 	/*
@@ -199,8 +202,11 @@ int blkopen2(unsigned major, unsigned minor, int rw, uint64_t *sectors)
 
 	snprintf(path, sizeof(path), "/dev/block/%u:%u", major, minor);
 	if (trypath(path, major, minor))
-		return blkopen(path, rw, NULL, NULL, sectors);
+		goto sysfs;
 
+	return blkopen(path, rw, NULL, NULL, sectors);
+
+sysfs:
 	/*
 	 * read /sys/dev/block/<major>:<minor>/uevent
 	 * and try /dev/<DEVNAME>
@@ -209,60 +215,53 @@ int blkopen2(unsigned major, unsigned minor, int rw, uint64_t *sectors)
 	snprintf(path, sizeof(path), "/sys/dev/block/%u:%u/uevent",
 	         major, minor);
 	fd = open(path, O_RDONLY);
-	if (fd != -1)
-	{
-		char buffer[4096];
-		size_t size;
+	if (fd == -1)
+		goto devfs;
 
-		size = read(fd, buffer, sizeof(buffer));
+	size = read(fd, buffer, sizeof(buffer));
 
-		close(fd);
+	close(fd);
 
-		if (size > 0 && size < sizeof(buffer))
-		{
-			char *line;
-			buffer[size] = '\0';
+	if (size == -1 || size >= sizeof(buffer))
+		goto devfs;
 
-			line = strstr(buffer, "DEVNAME=");
-			if (line != NULL)
-			{
-				char *name = line + 8;
-				char *endptr = name;
+	buffer[size] = '\0';
 
-				while (*endptr && *endptr != '\n')
-					endptr++;
+	line = strstr(buffer, "DEVNAME=");
+	if (line == NULL)
+		goto devfs;
 
-				*endptr = '\0';
+	line += 8;
+	end = line;
 
-				snprintf(path, sizeof(path), "/dev/%s", name);
+	while (*end && *end != '\n')
+		end++;
 
-				if (trypath(path, major, minor))
-					return blkopen(path, rw, NULL, NULL,
-					               sectors);
-			}
-		}
-	}
+	*end = '\0';
 
+	snprintf(path, sizeof(path), "/dev/%s", line);
+
+	if (trypath(path, major, minor))
+		goto devfs;
+
+	return blkopen(path, rw, NULL, NULL, sectors);
+
+devfs:
 	/*
 	 * scan /dev directory
 	 */
 
 	fd = open("/dev", O_RDONLY | O_DIRECTORY);
 	if (fd == -1)
-	{
-		error(errno, "can't open /dev directory");
-		return -1;
-	}
+		goto notfound;
 
 	fd = findandopen(fd, rw, major, minor);
-	if (fd == -1)
-		return -1;
-
-	if (fd == -2)
-	{
-		error(0, "can't find device %u:%u", major, minor);
-		return -1;
-	}
+	if (fd < 0)
+		goto notfound;
 
 	return blkopen(NULL, fd, NULL, NULL, sectors);
+
+notfound:
+	error(0, "can't find device %u:%u", major, minor);
+	return -1;
 }
