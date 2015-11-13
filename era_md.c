@@ -81,7 +81,7 @@ out:
 	return NULL;
 }
 
-// read, check and possible cache metadata block
+// read, check and cache metadata block
 void *md_block(struct md *md, int flags, uint64_t nr, uint32_t xor)
 {
 	struct generic_node *node;

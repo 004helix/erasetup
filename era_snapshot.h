@@ -23,6 +23,9 @@ struct era_snapshot_node {
 	((MD_BLOCK_SIZE - sizeof(struct era_snapshot_node)) / sizeof(uint32_t))
 
 int era_snapshot_copy(struct md *md, struct md *sn,
-                      uint64_t superblock, int flags);
+                      uint64_t superblock, unsigned entries);
+
+unsigned long *era_snapshot_getbitmap(struct md *md, unsigned era,
+                                      uint64_t superblock, unsigned entries);
 
 #endif

@@ -16,9 +16,6 @@
 #include "era_sm.h"
 #include "era_btree.h"
 
-#define BITS_PER_LONG ((int)sizeof(long) * 8)
-#define LONGS(bits) (((bits) + BITS_PER_LONG - 1) / BITS_PER_LONG)
-
 static inline int test_bit(unsigned long nr, unsigned long *bitmap)
 {
 	unsigned long offset = nr / BITS_PER_LONG;
@@ -91,15 +88,15 @@ static int era_array_cb(void *arg, unsigned size, void *dummy, void *data)
 	return 0;
 }
 
-struct writeset_state {
+struct writesets_state {
 	unsigned nr_blocks;
 	unsigned long *bitmap;
 	struct md *md;
 };
 
-static int writeset_cb(void *arg, unsigned size, void *keys, void *values)
+static int writesets_cb(void *arg, unsigned size, void *keys, void *values)
 {
-	struct writeset_state *state = arg;
+	struct writesets_state *state = arg;
 	struct era_writeset *ws;
 	uint64_t *eras;
 	unsigned i;
@@ -380,8 +377,8 @@ int era_spacemap_rebuild(struct md *md)
 {
 	unsigned long *bitmap;
 	struct disk_sm_root smr;
-	struct writeset_state wst;
 	struct era_superblock *sb;
+	struct writesets_state wst;
 	unsigned current_writeset_bits;
 	uint64_t current_writeset_root;
 	uint64_t writeset_tree_root;
@@ -468,14 +465,14 @@ int era_spacemap_rebuild(struct md *md)
 
 	md_flush(md);
 
-	wst = (struct writeset_state) {
+	wst = (struct writesets_state) {
 		.nr_blocks = nr_blocks,
 		.bitmap = bitmap,
 		.md = md,
 	};
 
 	if (era_writesets_walk(md, writeset_tree_root,
-	                       writeset_cb, &wst,
+	                       writesets_cb, &wst,
 	                       bitmap_cb, bitmap) == -1)
 		goto out;
 

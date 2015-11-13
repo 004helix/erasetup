@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <endian.h>
 #include <string.h>
 
 #include "era.h"
@@ -18,11 +19,13 @@
 int era_takesnap(int argc, char **argv)
 {
 	char *name, *snap, *cow;
+	struct era_superblock *sb;
 	struct era_dm_info info;
 	struct md *md, *sn;
 	uint64_t start, length;
 	uint64_t nr_blocks, era_blocks;
 	uint64_t snap_offset;
+	unsigned long *bitmap;
 	unsigned replace_with_linear;
 	unsigned long long meta_snap;
 	unsigned long long meta_used;
@@ -307,16 +310,56 @@ int era_takesnap(int argc, char **argv)
 	 */
 
 	if (era_snapshot_copy(md, sn, (uint64_t)meta_snap,
-	                      COPY_ARRAY | COPY_WRITESETS))
+	                      (unsigned)nr_blocks))
 		goto out_snap_meta;
+
+	/*
+	 * drop metadata snapshot
+	 */
+
+	if (era_dm_message0(name, "drop_metadata_snap"))
+		goto out_snap_meta;
+
+	/*
+	 * suspend era device
+	 */
+
+	if (era_dm_suspend(name))
+		goto out_snap;
+
+	/*
+	 * read and check superblock
+	 */
+
+	sb = md_block(md, MD_CACHED, 0, SUPERBLOCK_CSUM_XOR);
+	if (sb == NULL || era_sb_check(sb))
+		goto out_resume;
+
+	if (le32toh(sb->current_era) != era)
+	{
+		error(0, "unexpected current era after suspend: "
+		         "expected %u, but got %u",
+		         era, le32toh(sb->current_era));
+		goto out_resume;
+	}
+
+	bitmap = era_snapshot_getbitmap(md, era, 0, (unsigned)nr_blocks);
+	if (bitmap == NULL)
+		goto out_resume;
+
+	era_dm_resume(name);
 
 	printf("%llu\n", (long long unsigned)meta_snap);
 	printf("%llu\n", (long long unsigned)nr_blocks);
 	printf("%llu\n", (long long unsigned)era_blocks);
 
-	md_close(md);
-	md_close(sn);
-	return 0;
+	//md_close(md);
+	//md_close(sn);
+	//return 0;
+
+out_resume:
+	era_dm_resume(name);
+	goto out_snap;
 
 out_snap_meta:
 	era_dm_message0(name, "drop_metadata_snap");

@@ -17,13 +17,6 @@
 #include "era_sm.h"
 #include "era_btree.h"
 
-// verbose printf macro
-#define printvf(v, f, ...) \
-  do { \
-    if ((v) <= verbose) \
-      printf((f), __VA_ARGS__); \
-  } while (0)
-
 /*
  * callbacks states
  */
@@ -46,7 +39,7 @@ struct bitset_state {
 	unsigned overflow;
 };
 
-struct writeset_state {
+struct writesets_state {
 	unsigned nr_blocks;
 	struct md *md;
 };
@@ -293,9 +286,9 @@ static int dump_bitset(struct md *md, uint64_t root, unsigned max,
  * writeset tree walk callback
  */
 
-static int era_writeset_cb(void *arg, unsigned size, void *keys, void *values)
+static int era_writesets_cb(void *arg, unsigned size, void *keys, void *values)
 {
-	struct writeset_state *state = arg;
+	struct writesets_state *state = arg;
 	struct era_writeset *ws;
 	uint64_t *eras;
 	unsigned i;
@@ -357,12 +350,12 @@ out:
 
 static int dump_writeset(struct md *md, uint64_t root, unsigned max)
 {
-	struct writeset_state state = {
+	struct writesets_state state = {
 		.nr_blocks = max,
 		.md = md
 	};
 
-	return era_writesets_walk(md, root, era_writeset_cb, &state,
+	return era_writesets_walk(md, root, era_writesets_cb, &state,
 	                          NULL, NULL) ? -1 : 0;
 }
 
@@ -397,43 +390,40 @@ int era_dumpsb(int argc, char **argv)
 		return -1;
 
 	sb = md_block(md, MD_CACHED, 0, SUPERBLOCK_CSUM_XOR);
-	if (sb == NULL)
-		return -1;
-
-	if (era_sb_check(sb))
+	if (sb == NULL || era_sb_check(sb))
 		return -1;
 
 	printf("--- superblock ----------------------------------------------\n");
-	printvf(1, "checksum:                    0x%08X\n",
-	           le32toh(sb->csum));
-	printvf(1, "flags:                       0x%08X\n",
-	           le32toh(sb->flags));
-	printvf(1, "blocknr:                     %llu\n",
-	           (long long unsigned)le64toh(sb->blocknr));
-	printvf(0, "uuid:                        %s\n",
-	           uuid2str(sb->uuid));
-	printvf(1, "magic:                       %llu\n",
-	           (long long unsigned)le64toh(sb->magic));
-	printvf(1, "version:                     %u\n",
-	           le32toh(sb->version));
-	printvf(0, "data block size:             %u sectors\n",
-	           le32toh(sb->data_block_size));
-	printvf(0, "metadata block size:         %u sectors\n",
-	           le32toh(sb->metadata_block_size));
-	printvf(0, "total data blocks:           %u\n",
-	           le32toh(sb->nr_blocks));
-	printvf(0, "current era:                 %u\n",
-	           le32toh(sb->current_era));
-	printvf(1, "current writeset/total bits: %u\n",
-	           le32toh(sb->current_writeset.nr_bits));
-	printvf(1, "current writeset/root:       %llu\n",
-	           (long long unsigned)le64toh(sb->current_writeset.root));
-	printvf(1, "writeset tree root:          %llu\n",
-	           (long long unsigned)le64toh(sb->writeset_tree_root));
-	printvf(1, "era array root:              %llu\n",
-	           (long long unsigned)le64toh(sb->era_array_root));
-	printvf(0, "metadata snapshot:           %llu\n",
-	           (long long unsigned)le64toh(sb->metadata_snap));
+	printv(1, "checksum:                    0x%08X\n",
+	          le32toh(sb->csum));
+	printv(1, "flags:                       0x%08X\n",
+	          le32toh(sb->flags));
+	printv(1, "blocknr:                     %llu\n",
+	          (long long unsigned)le64toh(sb->blocknr));
+	printv(0, "uuid:                        %s\n",
+	          uuid2str(sb->uuid));
+	printv(1, "magic:                       %llu\n",
+	          (long long unsigned)le64toh(sb->magic));
+	printv(1, "version:                     %u\n",
+	          le32toh(sb->version));
+	printv(0, "data block size:             %u sectors\n",
+	          le32toh(sb->data_block_size));
+	printv(0, "metadata block size:         %u sectors\n",
+	          le32toh(sb->metadata_block_size));
+	printv(0, "total data blocks:           %u\n",
+	          le32toh(sb->nr_blocks));
+	printv(0, "current era:                 %u\n",
+	          le32toh(sb->current_era));
+	printv(1, "current writeset/total bits: %u\n",
+	          le32toh(sb->current_writeset.nr_bits));
+	printv(1, "current writeset/root:       %llu\n",
+	          (long long unsigned)le64toh(sb->current_writeset.root));
+	printv(1, "writeset tree root:          %llu\n",
+	          (long long unsigned)le64toh(sb->writeset_tree_root));
+	printv(1, "era array root:              %llu\n",
+	          (long long unsigned)le64toh(sb->era_array_root));
+	printv(0, "metadata snapshot:           %llu\n",
+	          (long long unsigned)le64toh(sb->metadata_snap));
 
 	if (verbose < 2)
 		goto done;

@@ -8,20 +8,40 @@
 #include <stdint.h>
 #include <stdio.h>
 
+// verbose printf macro
+#define printv(v, f, ...) \
+  do { \
+    if ((v) <= verbose) \
+      printf((f), __VA_ARGS__); \
+  } while (0)
+
+// device mapper uuid prefix and target names
 #define UUID_PREFIX     "ERA-"
 #define TARGET_ERA      "era"
 #define TARGET_LINEAR   "linear"
 #define TARGET_SNAPSHOT "snapshot"
 #define TARGET_ORIGIN   "snapshot-origin"
 
+// read-only empty block (zero filled)
 extern void *empty_block;
+
+// global options
 extern int verbose;
 extern int force;
 
+// global functions
 char *uuid2str(const void *uuid);
 void usage(FILE *out, int code);
 void error(int err, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
+
+// bitmap calculations
+#define BITS_PER_LONG ((int)sizeof(long) * 8)
+#define LONGS(bits) (((bits) + BITS_PER_LONG - 1) / BITS_PER_LONG)
+
+/*
+ * dm-era-target.c
+ */
 
 #define SUPERBLOCK_MAGIC 2126579579
 #define SUPERBLOCK_CSUM_XOR 146538381
@@ -60,6 +80,7 @@ struct era_superblock {
 	__le64 metadata_snap;
 } __attribute__ ((packed));
 
+// check superblock function
 int era_sb_check(struct era_superblock *sb);
 
 #endif
