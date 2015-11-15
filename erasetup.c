@@ -24,7 +24,7 @@
 
 #include "era_cmd_basic.h"
 #include "era_cmd_dumpsb.h"
-#include "era_cmd_snap.h"
+#include "era_cmd_takesnap.h"
 
 // verbose printf macro
 #define printvf(v, f, ...) \
@@ -59,8 +59,8 @@ void usage(FILE *out, int code)
 	"         open <name> <metadata-dev> <data-dev>\n"
 	"         close <name>\n"
 	"         status <name>\n\n"
-	"         takesnap <name> <snapshot-name> <cow-dev>\n"
-	"         dropsnap <name> <snapshot-name>\n\n"
+	"         takesnap <name> <snapshot-dev>\n"
+	"         dropsnap <name> <snapshot-dev>\n\n"
 	"         dumpsb <metadata-dev>\n"
 	"\n");
 	exit(code);
@@ -124,7 +124,7 @@ void error(int err, const char *fmt, ...)
 char *uuid2str(const void *uuid)
 {
 	static char ascii2hex[16] = "0123456789abcdef";
-	static char buffer[1 + UUID_LEN * 2];
+	static char buffer[6 + UUID_LEN * 2];
 	char *chr = buffer;
 	int i;
 
@@ -132,7 +132,11 @@ char *uuid2str(const void *uuid)
 	{
 		*chr++ = ascii2hex[((unsigned char *)uuid)[i] >> 4];
 		*chr++ = ascii2hex[((unsigned char *)uuid)[i] & 0x0f];
+
+		if (i == 4 || i == 6 || i == 8 || i == 10)
+			*chr++ = '-';
 	}
+
 	*chr = '\0';
 
 	return buffer;

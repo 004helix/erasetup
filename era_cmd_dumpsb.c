@@ -393,7 +393,8 @@ int era_dumpsb(int argc, char **argv)
 	if (sb == NULL || era_sb_check(sb))
 		return -1;
 
-	printf("--- superblock ----------------------------------------------\n");
+	printf("--- superblock ---------------------------------------"
+	       "-----------\n");
 	printv(1, "checksum:                    0x%08X\n",
 	          le32toh(sb->csum));
 	printv(1, "flags:                       0x%08X\n",
@@ -428,7 +429,8 @@ int era_dumpsb(int argc, char **argv)
 	if (verbose < 2)
 		goto done;
 
-	printf("\n--- btrees --------------------------------------------------\n");
+	printf("\n--- btrees -----------------------------------------"
+	       "-------------\n");
 
 	nr_blocks = le32toh(sb->nr_blocks);
 	era_array_root = le64toh(sb->era_array_root);

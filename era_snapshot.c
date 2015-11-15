@@ -159,7 +159,7 @@ static int snapshot_write(struct md *sn, uint64_t nr,
 
 	csum = crc_update(0xffffffff, &node->flags,
 	                  MD_BLOCK_SIZE - sizeof(node->csum));
-	node->csum = htole32(csum ^ SNAPSHOT_CSUM_XOR);
+	node->csum = htole32(csum ^ SNAP_ARRAY_CSUM_XOR);
 
 	if (md_write(sn, nr, node))
 		return -1;
@@ -269,7 +269,7 @@ int era_snapshot_copy(struct md *md, struct md *sn,
 
 	ast = (struct array_state) {
 		.sn = sn,
-		.nr = 0,
+		.nr = 1,
 		.curr = 0,
 		.total = 0,
 		.maximum = entries,

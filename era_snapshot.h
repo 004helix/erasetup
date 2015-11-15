@@ -5,11 +5,25 @@
 #ifndef __ERA_SNAPSHOT_H__
 #define __ERA_SNAPSHOT_H__
 
-#define COPY_ARRAY       0x01
-#define COPY_WRITESETS   0x02
-#define COPY_CURRENT_WS  0x04 /* unsupported */
+#define SNAP_SUPERBLOCK_CSUM_XOR 13116488
+#define SNAP_SUPERBLOCK_MAGIC 118135908
+#define SNAP_VERSION 1
 
-#define SNAPSHOT_CSUM_XOR 18275559
+struct era_snapshot_superblock {
+	__le32 csum;
+	__le32 flags;
+	__le64 blocknr;
+
+	__u8 uuid[UUID_LEN];
+	__le64 magic;
+	__le32 version;
+
+	__le32 data_block_size;
+	__le32 metadata_block_size;
+	__le32 nr_blocks;
+} __attribute__ ((packed));
+
+#define SNAP_ARRAY_CSUM_XOR 18275559
 
 struct era_snapshot_node {
 	__le32 csum;
