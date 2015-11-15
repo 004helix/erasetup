@@ -81,7 +81,7 @@ static int bitset_cb(void *arg, unsigned size, void *dummy, void *data)
 	return 0;
 }
 
-static int era_array_cb(void *arg, unsigned size, void *dummy, void *data)
+static int array_cb(void *arg, unsigned size, void *dummy, void *data)
 {
 	unsigned *total = arg;
 	*total += size;
@@ -485,7 +485,7 @@ int era_spacemap_rebuild(struct md *md)
 	total = 0;
 
 	if (era_array_walk(md, era_array_root,
-	                   era_array_cb, &total,
+	                   array_cb, &total,
 	                   bitmap_cb, bitmap) == -1)
 		goto out;
 

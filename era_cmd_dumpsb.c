@@ -48,7 +48,7 @@ struct writesets_state {
  * era array callback
  */
 
-static int era_array_cb(void *arg, unsigned size, void *dummy, void *data)
+static int array_cb(void *arg, unsigned size, void *dummy, void *data)
 {
 	struct array_state *state = arg;
 	__le32 *values = data;
@@ -139,7 +139,7 @@ static int dump_array(struct md *md, uint64_t root, unsigned max,
 		.maximum = max,
 	};
 
-	if (era_array_walk(md, root, era_array_cb, &state, NULL, NULL))
+	if (era_array_walk(md, root, array_cb, &state, NULL, NULL))
 		return -1;
 
 	if (state.total < state.maximum)
