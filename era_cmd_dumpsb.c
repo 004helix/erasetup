@@ -286,7 +286,7 @@ static int dump_bitset(struct md *md, uint64_t root, unsigned max,
  * writeset tree walk callback
  */
 
-static int era_writesets_cb(void *arg, unsigned size, void *keys, void *values)
+static int writesets_cb(void *arg, unsigned size, void *keys, void *values)
 {
 	struct writesets_state *state = arg;
 	struct era_writeset *ws;
@@ -355,7 +355,7 @@ static int dump_writeset(struct md *md, uint64_t root, unsigned max)
 		.md = md
 	};
 
-	return era_writesets_walk(md, root, era_writesets_cb, &state,
+	return era_writesets_walk(md, root, writesets_cb, &state,
 	                          NULL, NULL) ? -1 : 0;
 }
 
