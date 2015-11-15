@@ -177,17 +177,7 @@ int era_takesnap(int argc, char **argv)
 	if (md == NULL)
 		goto out;
 
-	/*
-	 * open snapshot device
-	 */
-
-	sn = md_open(snap, 1);
-	if (sn == NULL)
-		goto out;
-
-	uuid = get_snapshot_uuid(sn, snap);
-	if (uuid == NULL)
-		goto out;
+	printv(1, "era device: era %s\n", table);
 
 	/*
 	 * check era device status
@@ -225,6 +215,22 @@ int era_takesnap(int argc, char **argv)
 		goto out;
 	}
 
+	printv(1, "era device: %s\n", status);
+
+	/*
+	 * open snapshot device
+	 */
+
+	sn = md_open(snap, 1);
+	if (sn == NULL)
+		goto out;
+
+	uuid = get_snapshot_uuid(sn, snap);
+	if (uuid == NULL)
+		goto out;
+
+	printv(1, "snapshot uuid: %s\n", uuid2str(uuid));
+
 	/*
 	 * calculate era array size
 	 */
@@ -232,6 +238,9 @@ int era_takesnap(int argc, char **argv)
 	nr_blocks = (unsigned)((length + chunk - 1) / chunk);
 	snap_blocks = (nr_blocks + ERAS_PER_BLOCK - 1) / ERAS_PER_BLOCK;
 	snap_offset = (1 + snap_blocks) * meta_chunk;
+
+	printv(1, "snapshot metadata: %llu KiB\n",
+	       (long long unsigned)(snap_offset * SECTOR_SIZE / 1024));
 
 	/*
 	 * create snapshot and cow devices
@@ -271,6 +280,9 @@ int era_takesnap(int argc, char **argv)
 
 	cow_major = info.major;
 	cow_minor = info.minor;
+
+	printv(1, "snapshot cow name: %s\n", cow_dmname);
+	printv(1, "snapshot device name: %s\n", snap_dmname);
 
 	/*
 	 * save snapshot superblock
@@ -323,6 +335,8 @@ int era_takesnap(int argc, char **argv)
 	                       sizeof(table), table))
 		goto out_snap;
 
+	printv(1, "origin device: %s %s\n", target, table);
+
 	if (!strcmp(target, TARGET_LINEAR))
 	{
 		long long unsigned zero = 3;
@@ -346,6 +360,8 @@ int era_takesnap(int argc, char **argv)
 		if (era_dm_suspend(orig))
 			goto out_snap;
 
+		printv(1, "origin device: suspend\n");
+
 		if (era_dm_load(orig, start, length, target, table, NULL))
 		{
 			era_dm_resume(orig);
@@ -354,8 +370,12 @@ int era_takesnap(int argc, char **argv)
 
 		replace_with_linear++;
 
+		printv(1, "origin device: %s %s\n", target, table);
+
 		if (era_dm_resume(orig))
 			goto out_snap;
+
+		printv(1, "origin device: resume\n");
 	}
 
 	if (strcmp(target, TARGET_ORIGIN))
@@ -370,6 +390,8 @@ int era_takesnap(int argc, char **argv)
 
 	if (era_dm_message0(name, "take_metadata_snap"))
 		goto out_snap;
+
+	printv(1, "era device: take metadata snapshot\n");
 
 	if (era_dm_first_status(NULL, era_dmuuid, &start, &length,
 	                        0, NULL, sizeof(status), status))
@@ -397,12 +419,16 @@ int era_takesnap(int argc, char **argv)
 		goto out_snap_meta;
 	}
 
+	printv(1, "era device: %s\n", status);
+
 	/*
 	 * copy era_array and all archived writesets to snapshot
 	 */
 
 	if (era_snapshot_copy(md, sn, (uint64_t)meta_snap, nr_blocks))
 		goto out_snap_meta;
+
+	printv(1, "era device: copy metadata snapshot\n");
 
 	/*
 	 * drop metadata snapshot
@@ -411,12 +437,16 @@ int era_takesnap(int argc, char **argv)
 	if (era_dm_message0(name, "drop_metadata_snap"))
 		goto out_snap_meta;
 
+	printv(1, "era device: drop metadata snapshot\n");
+
 	/*
 	 * suspend era device
 	 */
 
 	if (era_dm_suspend(name))
 		goto out_snap;
+
+	printv(1, "era device: suspend\n");
 
 	/*
 	 * read and check superblock

@@ -12,7 +12,7 @@
 #define printv(v, f, ...) \
   do { \
     if ((v) <= verbose) \
-      printf((f), __VA_ARGS__); \
+      printf((f), ##__VA_ARGS__); \
   } while (0)
 
 // device mapper uuid prefix and target names

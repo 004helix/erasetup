@@ -381,9 +381,6 @@ unsigned long *era_snapshot_getbitmap(struct md *md, unsigned era,
 		return NULL;
 	}
 
-	printv(1, "found bitset root in block %llu for era %u",
-	          (long long unsigned)wst.found_root, era);
-
 	bitmap = malloc(sizeof(long) * LONGS(entries));
 	if (bitmap == NULL)
 	{
