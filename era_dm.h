@@ -11,9 +11,12 @@
 #define TARGET_SNAPSHOT "snapshot"
 #define TARGET_ORIGIN   "snapshot-origin"
 
+#include <linux/dm-ioctl.h>
+
 /* truncated dm_info */
 struct era_dm_info {
 	int exists;
+	int suspended;
 	uint32_t major;
 	uint32_t minor;
 	int32_t open_count;
@@ -61,6 +64,6 @@ int era_dm_first_status(const char *name,
                         size_t target_size, char *target_ptr,
                         size_t params_size, char *params_ptr);
 
-int era_dm_list(void);
+int era_dm_list(int (*cb)(void *arg, const char *name), void *cbarg);
 
 #endif

@@ -62,6 +62,7 @@ static int _dm_create(int task, int wait,
 
 		info->target_count = dmi.target_count;
 		info->open_count = dmi.open_count;
+		info->suspended = dmi.suspended;
 		info->exists = dmi.exists;
 		info->major = dmi.major;
 		info->minor = dmi.minor;
@@ -176,6 +177,7 @@ int era_dm_info(const char *name,
 	{
 		info->target_count = dmi.target_count;
 		info->open_count = dmi.open_count;
+		info->suspended = dmi.suspended;
 		info->exists = dmi.exists;
 		info->major = dmi.major;
 		info->minor = dmi.minor;
@@ -335,7 +337,7 @@ out:
 	return rc;
 }
 
-int era_dm_list(void)
+int era_dm_list(int (*cb)(void *arg, const char *name), void *cbarg)
 {
 	struct dm_task *dmt;
 	struct dm_names *names;
@@ -354,7 +356,8 @@ int era_dm_list(void)
 	{
 		do {
 			names = (struct dm_names *)((char *)names + next);
-			printf("%s\n", names->name);
+			if (cb(cbarg, names->name))
+				goto out;
 			next = names->next;
 		} while(next);
 	}

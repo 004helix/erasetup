@@ -477,9 +477,9 @@ int era_close(int argc, char **argv)
 {
 	struct era_dm_info info;
 	uint64_t start, length;
-	char target[128];
-	char orig[128];
-	char uuid[256];
+	char target[DM_MAX_TYPE_NAME];
+	char orig[DM_NAME_LEN];
+	char uuid[DM_UUID_LEN];
 	char *name;
 
 	/*

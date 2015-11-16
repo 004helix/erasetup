@@ -61,7 +61,7 @@ void usage(FILE *out, int code)
 	"         close <name>\n"
 	"         status <name>\n\n"
 	"         takesnap <name> <snapshot-dev>\n"
-	"         dropsnap <name> <snapshot-dev>\n\n"
+	"         dropsnap <snapshot-dev>\n\n"
 	"         dumpsb <metadata-dev>\n"
 	"\n");
 	exit(code);

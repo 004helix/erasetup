@@ -94,16 +94,16 @@ int era_takesnap(int argc, char **argv)
 	unsigned real_major, real_minor;
 	unsigned chunk, meta_chunk, era;
 	size_t status_len;
-	char era_dmuuid[128];
-	char orig_dmuuid[128];
-	char snap_dmname[128];
-	char snap_dmuuid[128];
-	char cow_dmuuid[128];
-	char cow_dmname[128];
-	char status[128];
-	char target[128];
-	char table[128];
-	char orig[128];
+	char era_dmuuid[DM_UUID_LEN];
+	char orig_dmuuid[DM_UUID_LEN];
+	char snap_dmname[DM_NAME_LEN];
+	char snap_dmuuid[DM_UUID_LEN];
+	char cow_dmname[DM_NAME_LEN];
+	char cow_dmuuid[DM_UUID_LEN];
+	char target[DM_MAX_TYPE_NAME];
+	char orig[DM_NAME_LEN];
+	char status[256];
+	char table[256];
 	int fd;
 
 	switch (argc)
