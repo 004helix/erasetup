@@ -35,10 +35,6 @@ void usage(FILE *out, int code);
 void error(int err, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
 
-// bitmap calculations
-#define BITS_PER_LONG ((int)sizeof(long) * 8)
-#define LONGS(bits) (((bits) + BITS_PER_LONG - 1) / BITS_PER_LONG)
-
 /*
  * dm-era-target.c
  */
@@ -80,7 +76,7 @@ struct era_superblock {
 	__le64 metadata_snap;
 } __attribute__ ((packed));
 
-// check superblock function
+// check superblock
 int era_sb_check(struct era_superblock *sb);
 
 #endif
