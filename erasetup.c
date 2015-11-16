@@ -24,6 +24,7 @@
 
 #include "era_cmd_basic.h"
 #include "era_cmd_dumpsb.h"
+#include "era_cmd_status.h"
 #include "era_cmd_takesnap.h"
 
 // verbose printf macro
@@ -222,6 +223,9 @@ int main(int argc, char **argv)
 
 	if (!strcmp(cmd, "close"))
 		return era_close(argc - optind, &argv[optind]) ? 1 : 0;
+
+	if (!strcmp(cmd, "status"))
+		return era_status(argc - optind, &argv[optind]) ? 1 : 0;
 
 	if (!strcmp(cmd, "takesnap"))
 		return era_takesnap(argc - optind, &argv[optind]) ? 1 : 0;
