@@ -90,7 +90,7 @@ int era_takesnap(int argc, char **argv)
 	unsigned long long meta_total;
 	unsigned cow_major, cow_minor;
 	unsigned meta_major, meta_minor;
-	unsigned data_major, data_minor;
+	unsigned orig_major, orig_minor;
 	unsigned real_major, real_minor;
 	unsigned chunk, meta_chunk, era;
 	size_t status_len;
@@ -162,7 +162,7 @@ int era_takesnap(int argc, char **argv)
 
 	if (sscanf(table, "%u:%u %u:%u %u",
 	           &meta_major, &meta_minor,
-	           &data_major, &data_minor,
+	           &orig_major, &orig_minor,
 	           &chunk) != 5)
 	{
 		error(0, "can't parse device table: \"%s\"", table);
@@ -177,7 +177,7 @@ int era_takesnap(int argc, char **argv)
 	if (md == NULL)
 		goto out;
 
-	printv(1, "era device: era %s\n", table);
+	printv(1, "era: era %s\n", table);
 
 	/*
 	 * check era device status
@@ -209,13 +209,13 @@ int era_takesnap(int argc, char **argv)
 		goto out;
 	}
 
-	if (meta_chunk * SECTOR_SIZE != MD_BLOCK_SIZE)
+	if ((meta_chunk << SECTOR_SHIFT) != MD_BLOCK_SIZE)
 	{
 		error(0, "unexpected metadata block size: %u", meta_chunk);
 		goto out;
 	}
 
-	printv(1, "era device: %s\n", status);
+	printv(1, "era: %s\n", status);
 
 	/*
 	 * open snapshot device
@@ -229,7 +229,7 @@ int era_takesnap(int argc, char **argv)
 	if (uuid == NULL)
 		goto out;
 
-	printv(1, "snapshot uuid: %s\n", uuid2str(uuid));
+	printv(1, "snapshot: uuid %s\n", uuid2str(uuid));
 
 	/*
 	 * calculate era array size
@@ -239,8 +239,8 @@ int era_takesnap(int argc, char **argv)
 	snap_blocks = (nr_blocks + ERAS_PER_BLOCK - 1) / ERAS_PER_BLOCK;
 	snap_offset = (1 + snap_blocks) * meta_chunk;
 
-	printv(1, "snapshot metadata: %llu KiB\n",
-	       (long long unsigned)(snap_offset * SECTOR_SIZE / 1024));
+	printv(1, "snapshot: metadata %llu KiB\n",
+	       (long long unsigned)((snap_offset << SECTOR_SHIFT) / 1024));
 
 	/*
 	 * create snapshot and cow devices
@@ -281,12 +281,14 @@ int era_takesnap(int argc, char **argv)
 	cow_major = info.major;
 	cow_minor = info.minor;
 
-	printv(1, "snapshot cow name: %s\n", cow_dmname);
-	printv(1, "snapshot device name: %s\n", snap_dmname);
+	printv(1, "snapshot: cow %s\n", cow_dmname);
+	printv(1, "snapshot: name %s\n", snap_dmname);
 
 	/*
 	 * save snapshot superblock
 	 */
+
+	printv(1, "snapshot: write superblock\n");
 
 	ssb = sn->buffer;
 
@@ -297,7 +299,7 @@ int era_takesnap(int argc, char **argv)
 	ssb->version = htole32(1);
 
 	ssb->data_block_size = htole32(chunk);
-	ssb->metadata_block_size = htole32(MD_BLOCK_SIZE / SECTOR_SIZE);
+	ssb->metadata_block_size = htole32(MD_BLOCK_SIZE >> SECTOR_SHIFT);
 	ssb->nr_blocks = htole32(nr_blocks);
 
 	csum = crc_update(0xffffffff, &ssb->flags,
@@ -324,7 +326,9 @@ int era_takesnap(int argc, char **argv)
 		goto out_snap;
 	}
 
-	if (info.target_count != 1)
+	if (info.target_count != 1 ||
+	    info.major != orig_major ||
+	    info.minor != orig_minor)
 	{
 		error(0, "invalid origin device: %s", orig);
 		goto out_snap;
@@ -335,7 +339,7 @@ int era_takesnap(int argc, char **argv)
 	                       sizeof(table), table))
 		goto out_snap;
 
-	printv(1, "origin device: %s %s\n", target, table);
+	printv(1, "origin: %s %s\n", target, table);
 
 	if (!strcmp(target, TARGET_LINEAR))
 	{
@@ -357,12 +361,14 @@ int era_takesnap(int argc, char **argv)
 		strcpy(target, TARGET_ORIGIN);
 		sprintf(table, "%u:%u", real_major, real_minor);
 
+		printv(1, "origin: suspend\n");
+
 		if (era_dm_suspend(orig))
 			goto out_snap;
 
-		printv(1, "origin device: suspend\n");
+		printv(1, "origin: %s %s\n", target, table);
 
-		if (era_dm_load(orig, start, length, target, table, NULL))
+		if (era_dm_load(orig, 0, length, target, table, NULL))
 		{
 			era_dm_resume(orig);
 			goto out_snap;
@@ -370,12 +376,10 @@ int era_takesnap(int argc, char **argv)
 
 		replace_with_linear++;
 
-		printv(1, "origin device: %s %s\n", target, table);
+		printv(1, "origin: resume\n");
 
 		if (era_dm_resume(orig))
 			goto out_snap;
-
-		printv(1, "origin device: resume\n");
 	}
 
 	if (strcmp(target, TARGET_ORIGIN))
@@ -384,14 +388,20 @@ int era_takesnap(int argc, char **argv)
 		goto out_snap;
 	}
 
+	if (sscanf(table, "%u:%u", &real_major, &real_minor) != 2)
+	{
+		error(0, "can't parse origin table: \"%s\"", table);
+		goto out_snap;
+	}
+
 	/*
 	 * send take_metadata_snap to era
 	 */
 
+	printv(1, "era: take metadata snapshot\n");
+
 	if (era_dm_message0(name, "take_metadata_snap"))
 		goto out_snap;
-
-	printv(1, "era device: take metadata snapshot\n");
 
 	if (era_dm_first_status(NULL, era_dmuuid, &start, &length,
 	                        0, NULL, sizeof(status), status))
@@ -419,34 +429,34 @@ int era_takesnap(int argc, char **argv)
 		goto out_snap_meta;
 	}
 
-	printv(1, "era device: %s\n", status);
+	printv(1, "era: %s\n", status);
 
 	/*
 	 * copy era_array and all archived writesets to snapshot
 	 */
 
+	printv(1, "era: copy metadata snapshot\n");
+
 	if (era_snapshot_copy(md, sn, (uint64_t)meta_snap, nr_blocks))
 		goto out_snap_meta;
-
-	printv(1, "era device: copy metadata snapshot\n");
 
 	/*
 	 * drop metadata snapshot
 	 */
 
+	printv(1, "era: drop metadata snapshot\n");
+
 	if (era_dm_message0(name, "drop_metadata_snap"))
 		goto out_snap_meta;
-
-	printv(1, "era device: drop metadata snapshot\n");
 
 	/*
 	 * suspend era device
 	 */
 
+	printv(1, "era: suspend\n");
+
 	if (era_dm_suspend(name))
 		goto out_snap;
-
-	printv(1, "era device: suspend\n");
 
 	/*
 	 * read and check superblock
@@ -454,33 +464,95 @@ int era_takesnap(int argc, char **argv)
 
 	sb = md_block(md, MD_CACHED, 0, SUPERBLOCK_CSUM_XOR);
 	if (sb == NULL || era_sb_check(sb))
-		goto out_resume;
+	{
+		era_dm_resume(name);
+		goto out_snap;
+	}
 
 	if (le32toh(sb->current_era) != era)
 	{
 		error(0, "unexpected current era after suspend: "
 		         "expected %u, but got %u",
 		         era, le32toh(sb->current_era));
-		goto out_resume;
+		era_dm_resume(name);
+		goto out_snap;
 	}
+
+	/*
+	 * copy bitmap for current era
+	 */
+
+	printv(1, "era: copy bitset for era %u\n", era);
 
 	bitmap = era_snapshot_getbitmap(md, era, 0, nr_blocks);
 	if (bitmap == NULL)
-		goto out_resume;
+	{
+		era_dm_resume(name);
+		goto out_snap;
+	}
 
-	era_dm_resume(name);
+	/*
+	 * load table into snapshot device
+	 */
 
-	printf("%llu\n", (long long unsigned)meta_snap);
-	printf("%llu\n", (long long unsigned)nr_blocks);
-	printf("%llu\n", (long long unsigned)snap_blocks);
+	snprintf(table, sizeof(table), "%u:%u %u:%u %s %u",
+	         real_major, real_minor, cow_major, cow_minor,
+	         SNAPSHOT_PERSISTENT, SNAPSHOT_CHUNK);
 
-	//md_close(md);
-	//md_close(sn);
-	//return 0;
+	printv(1, "snapshot: %s %s\n", TARGET_SNAPSHOT, table);
 
-out_resume:
-	era_dm_resume(name);
-	goto out_snap;
+	if (md_write(sn, snap_blocks + 1, empty_block))
+		return -1;
+
+	if (era_dm_load(snap_dmname, 0, length, TARGET_SNAPSHOT, table, NULL))
+	{
+		era_dm_resume(name);
+		free(bitmap);
+		goto out_snap;
+	}
+
+	printv(1, "snapshot: resume\n");
+
+	if (era_dm_resume(snap_dmname))
+	{
+		era_dm_resume(name);
+		free(bitmap);
+		goto out_snap;
+	}
+
+	/*
+	 * resume era device
+	 */
+
+	printv(1, "era: resume\n");
+
+	if (era_dm_resume(name))
+	{
+		free(bitmap);
+		goto out_snap;
+	}
+
+	/*
+	 * digest bitmap
+	 */
+
+	printv(1, "snapshot: digest bitmap for era %u\n", era);
+
+	if (era_snapshot_digest(sn, era, bitmap, nr_blocks))
+	{
+		free(bitmap);
+		goto out_snap;
+	}
+
+	free(bitmap);
+
+	/*
+	 * done
+	 */
+
+	md_close(sn);
+	md_close(md);
+	return 0;
 
 out_snap_meta:
 	era_dm_message0(name, "drop_metadata_snap");

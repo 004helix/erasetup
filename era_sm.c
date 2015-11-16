@@ -11,33 +11,11 @@
 #include <errno.h>
 
 #include "crc32c.h"
+#include "bitmap.h"
 #include "era.h"
 #include "era_md.h"
 #include "era_sm.h"
 #include "era_btree.h"
-
-static inline int test_bit(unsigned long nr, unsigned long *bitmap)
-{
-	unsigned long offset = nr / BITS_PER_LONG;
-	unsigned long bit = nr & (BITS_PER_LONG - 1);
-	return (bitmap[offset] >> bit) & 1;
-}
-
-static inline void set_bit(unsigned long nr, unsigned long *bitmap)
-{
-	unsigned long offset = nr / BITS_PER_LONG;
-	unsigned long bit = nr & (BITS_PER_LONG - 1);
-	bitmap[offset] |= 1UL << bit;
-}
-
-static inline int test_and_set_bit(unsigned long nr, unsigned long *bitmap)
-{
-	unsigned long offset = nr / BITS_PER_LONG;
-	unsigned long bit = nr & (BITS_PER_LONG - 1);
-	int rc = (bitmap[offset] >> bit) & 1;
-	bitmap[offset] |= 1UL << bit;
-	return rc;
-}
 
 static unsigned long first_unset_bit(unsigned long size, unsigned long *bitmap)
 {

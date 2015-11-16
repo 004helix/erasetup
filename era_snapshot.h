@@ -39,6 +39,9 @@ struct era_snapshot_node {
 int era_snapshot_copy(struct md *md, struct md *sn,
                       uint64_t superblock, unsigned entries);
 
+int era_snapshot_digest(struct md *sn, unsigned era,
+                        unsigned long *bitmap, unsigned entries);
+
 unsigned long *era_snapshot_getbitmap(struct md *md, unsigned era,
                                       uint64_t superblock, unsigned entries);
 

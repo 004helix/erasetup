@@ -11,23 +11,23 @@
 #include <errno.h>
 
 #include "crc32c.h"
+#include "bitmap.h"
 #include "era.h"
 #include "era_md.h"
 #include "era_btree.h"
 #include "era_snapshot.h"
-
-static inline void set_bit(unsigned long nr, unsigned long *bitmap)
-{
-	unsigned long offset = nr / BITS_PER_LONG;
-	unsigned long bit = nr & (BITS_PER_LONG - 1);
-	bitmap[offset] |= 1UL << bit;
-}
 
 struct writeset {
 	unsigned era;
 	uint64_t root;
 	unsigned nr_bits;
 	unsigned long *bitmap;
+};
+
+struct writesets_find {
+	unsigned find_era;
+	uint32_t found_bits;
+	uint64_t found_root;
 };
 
 struct writesets_state {
@@ -65,7 +65,8 @@ static int bitset_cb(void *arg, unsigned size, void *dummy, void *data)
 
 		if (val == 0)
 		{
-			state->total += 64;
+			state->total = state->total + 64 > state->maximum ?
+			               state->maximum : state->total + 64;
 			continue;
 		}
 
@@ -74,14 +75,10 @@ static int bitset_cb(void *arg, unsigned size, void *dummy, void *data)
 			if (state->total >= state->maximum)
 				return 0;
 
-			if (!((val >> j) & 1))
-			{
+			if ((val >> j) & 1)
+				set_bit(state->total++, state->bitmap);
+			else
 				state->total++;
-				continue;
-			}
-
-			set_bit(state->total, state->bitmap);
-			state->total++;
 		}
 	}
 
@@ -269,7 +266,7 @@ int era_snapshot_copy(struct md *md, struct md *sn,
 
 	ast = (struct array_state) {
 		.sn = sn,
-		.nr = 1,
+		.nr = 1, // first free block after superblock
 		.curr = 0,
 		.total = 0,
 		.maximum = entries,
@@ -310,12 +307,6 @@ out:
 
 	return rc;
 }
-
-struct writesets_find {
-	unsigned find_era;
-	uint32_t found_bits;
-	uint64_t found_root;
-};
 
 static int writesets_search_cb(void *arg, unsigned size,
                                void *keys, void *values)
@@ -390,9 +381,91 @@ unsigned long *era_snapshot_getbitmap(struct md *md, unsigned era,
 
 	memset(bitmap, 0, sizeof(long) * LONGS(entries));
 
-	// .... !!!!!!!!!
+	bst = (struct bitset_state) {
+		.total = 0,
+		.maximum = entries,
+		.bitmap = bitmap,
+	};
 
-	free(bitmap);
+	md_flush(md);
 
-	return NULL;
+	if (era_bitset_walk(md, wst.found_root,
+	                    bitset_cb, &bst, NULL, NULL))
+	{
+		free(bitmap);
+		return NULL;
+	}
+
+	if (bst.total != entries)
+	{
+		error(0, "wrong bitset size: expected %u, but found %u",
+		      entries, bst.total);
+		free(bitmap);
+		return NULL;
+	}
+
+	return bitmap;
+}
+
+int era_snapshot_digest(struct md *sn, unsigned era,
+                        unsigned long *bitmap, unsigned entries)
+{
+	uint64_t i, j, snap_blocks;
+
+	snap_blocks = (entries + ERAS_PER_BLOCK - 1) / ERAS_PER_BLOCK;
+
+	for (i = 0; i < snap_blocks; i++)
+	{
+		struct era_snapshot_node *node = NULL;
+		uint64_t from, to;
+		uint32_t csum;
+
+		from = i * ERAS_PER_BLOCK;
+		to = from + ERAS_PER_BLOCK > entries ?
+		     entries : from + ERAS_PER_BLOCK;
+
+		for (j = from; j < to; j++)
+		{
+			unsigned long offset = j / BITS_PER_LONG;
+			unsigned long bit = j & (BITS_PER_LONG - 1);
+
+			if (bit == 0 && bitmap[offset] == 0)
+			{
+				j += BITS_PER_LONG - 1;
+				continue;
+			}
+
+			if (!((bitmap[offset] >> bit) & 1))
+				continue;
+
+			if (node == NULL)
+			{
+				node = md_block(sn, 0, i + 1,
+				                SNAP_ARRAY_CSUM_XOR);
+				if (node == NULL)
+					return -1;
+
+				if (le64toh(node->blocknr) != i + 1)
+				{
+					error(0, "bad snapshot block: %llu",
+					      (long long unsigned)(i + 1));
+					return -1;
+				}
+			}
+
+			node->era[j - from] = htole32(era);
+		}
+
+		if (node != NULL)
+		{
+			csum = crc_update(0xffffffff, &node->flags,
+			                  MD_BLOCK_SIZE - sizeof(node->csum));
+			node->csum = htole32(csum ^ SNAP_ARRAY_CSUM_XOR);
+
+			if (md_write(sn, i + 1, node))
+				return -1;
+		}
+	}
+
+	return 0;
 }

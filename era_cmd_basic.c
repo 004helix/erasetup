@@ -58,7 +58,7 @@ static int parse_chunk(const char *str)
 		break;
 	case 's':
 	case 'S':
-		chunk *= SECTOR_SIZE;
+		chunk <<= SECTOR_SHIFT;
 		endptr++;
 		break;
 	default:
@@ -74,12 +74,12 @@ static int parse_chunk(const char *str)
 		return -1;
 	}
 
-	chunk /= SECTOR_SIZE;
+	chunk >>= SECTOR_SHIFT;
 
 	if (chunk < MIN_CHUNK_SIZE)
 	{
 		error(0, "chunk too small, minimum is %d",
-		         (MIN_CHUNK_SIZE * SECTOR_SIZE));
+		         (MIN_CHUNK_SIZE << SECTOR_SHIFT));
 		return -1;
 	}
 

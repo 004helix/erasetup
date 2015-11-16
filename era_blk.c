@@ -177,7 +177,7 @@ int blkopen(const char *device, int rw,
 	}
 
 	if (sectors)
-		*sectors = size / SECTOR_SIZE;
+		*sectors = size >> SECTOR_SHIFT;
 
 	if (major)
 		*major = major(st.st_rdev);
