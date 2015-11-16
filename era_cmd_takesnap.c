@@ -285,31 +285,6 @@ int era_takesnap(int argc, char **argv)
 	printv(1, "snapshot: name %s\n", snap_dmname);
 
 	/*
-	 * save snapshot superblock
-	 */
-
-	printv(1, "snapshot: write superblock\n");
-
-	ssb = sn->buffer;
-
-	memset(ssb, 0, MD_BLOCK_SIZE);
-	memcpy(ssb->uuid, uuid, UUID_LEN);
-
-	ssb->magic = htole64(SNAP_SUPERBLOCK_MAGIC);
-	ssb->version = htole32(1);
-
-	ssb->data_block_size = htole32(chunk);
-	ssb->metadata_block_size = htole32(MD_BLOCK_SIZE >> SECTOR_SHIFT);
-	ssb->nr_blocks = htole32(nr_blocks);
-
-	csum = crc_update(0xffffffff, &ssb->flags,
-	                  MD_BLOCK_SIZE - sizeof(uint32_t));
-	ssb->csum = htole32(csum ^ SNAP_SUPERBLOCK_CSUM_XOR);
-
-	if (md_write(sn, 0, ssb))
-		goto out_snap;
-
-	/*
 	 * check and replace origin device with the "snapshot-origin" target
 	 */
 
@@ -545,6 +520,32 @@ int era_takesnap(int argc, char **argv)
 	}
 
 	free(bitmap);
+
+	/*
+	 * save snapshot superblock
+	 */
+
+	printv(1, "snapshot: write superblock\n");
+
+	ssb = sn->buffer;
+
+	memset(ssb, 0, MD_BLOCK_SIZE);
+	memcpy(ssb->uuid, uuid, UUID_LEN);
+
+	ssb->magic = htole64(SNAP_SUPERBLOCK_MAGIC);
+	ssb->version = htole32(1);
+
+	ssb->data_block_size = htole32(chunk);
+	ssb->metadata_block_size = htole32(MD_BLOCK_SIZE >> SECTOR_SHIFT);
+	ssb->nr_blocks = htole32(nr_blocks);
+	ssb->snapshot_era = htole32(era);
+
+	csum = crc_update(0xffffffff, &ssb->flags,
+	                  MD_BLOCK_SIZE - sizeof(uint32_t));
+	ssb->csum = htole32(csum ^ SNAP_SUPERBLOCK_CSUM_XOR);
+
+	if (md_write(sn, 0, ssb))
+		goto out_snap;
 
 	/*
 	 * done

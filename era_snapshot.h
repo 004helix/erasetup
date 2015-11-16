@@ -21,6 +21,8 @@ struct era_snapshot_superblock {
 	__le32 data_block_size;
 	__le32 metadata_block_size;
 	__le32 nr_blocks;
+
+	__le32 snapshot_era;
 } __attribute__ ((packed));
 
 #define SNAP_ARRAY_CSUM_XOR 18275559
