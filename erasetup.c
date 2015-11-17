@@ -27,13 +27,6 @@
 #include "era_cmd_status.h"
 #include "era_cmd_takesnap.h"
 
-// verbose printf macro
-#define printvf(v, f, ...) \
-  do { \
-    if ((v) <= verbose) \
-      printf((f), __VA_ARGS__); \
-  } while (0)
-
 // empty metadata block
 void *empty_block;
 
@@ -86,7 +79,7 @@ void error(int err, const char *fmt, ...)
 		buffer = malloc(512);
 		if (buffer == NULL)
 			return;
-		bufsize = 256;
+		bufsize = 512;
 	}
 
 	while (1)
