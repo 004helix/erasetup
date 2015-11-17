@@ -4,23 +4,18 @@
 
 #define _GNU_SOURCE
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/mman.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <string.h>
-#include <endian.h>
 #include <stdio.h>
 #include <errno.h>
-#include <fcntl.h>
 
 #include "era.h"
 #include "era_md.h"
 #include "era_dm.h"
-#include "era_btree.h"
 
 #include "era_cmd_basic.h"
 #include "era_cmd_dumpsb.h"
