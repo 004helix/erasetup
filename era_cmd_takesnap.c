@@ -481,7 +481,10 @@ int era_takesnap(int argc, char **argv)
 	printv(1, "snapshot: %s %s\n", TARGET_SNAPSHOT, table);
 
 	if (md_write(sn, snap_blocks + 1, empty_block))
-		return -1;
+	{
+		free(bitmap);
+		goto out_resume;
+	}
 
 	if (era_dm_load(snap_dmname, 0, length, TARGET_SNAPSHOT, table, NULL))
 	{
