@@ -464,7 +464,7 @@ int era_takesnap(int argc, char **argv)
 	 * copy bitmap for current era
 	 */
 
-	printv(1, "era: copy bitset for era %u\n", era);
+	printv(1, "era: copy bitmap for era %u\n", era);
 
 	bitmap = era_snapshot_getbitmap(md, era, 0, nr_blocks);
 	if (bitmap == NULL)
