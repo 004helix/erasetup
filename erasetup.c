@@ -21,6 +21,7 @@
 #include "era_cmd_dumpsb.h"
 #include "era_cmd_status.h"
 #include "era_cmd_takesnap.h"
+#include "era_cmd_dropsnap.h"
 
 // empty metadata block
 void *empty_block;
@@ -217,6 +218,9 @@ int main(int argc, char **argv)
 
 	if (!strcmp(cmd, "takesnap"))
 		return era_takesnap(argc - optind, &argv[optind]) ? 1 : 0;
+
+	if (!strcmp(cmd, "dropsnap"))
+		return era_dropsnap(argc - optind, &argv[optind]) ? 1 : 0;
 
 	error(0, "%s: unknown command: %s", argv[0], cmd);
 	usage(stderr, 1);
