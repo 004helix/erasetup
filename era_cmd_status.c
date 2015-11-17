@@ -16,6 +16,7 @@
 #include "era_snapshot.h"
 
 struct devices {
+	struct era_dm_info info;
 	char target[DM_MAX_TYPE_NAME];
 	char name[DM_NAME_LEN];
 	char uuid[DM_UUID_LEN];
@@ -96,6 +97,21 @@ static int devlist_cb(void *arg, const char *name)
 
 	memset(dev, 0, sizeof(*dev));
 	strcpy(dev->name, name);
+
+	if (era_dm_info(dev->name, NULL, &dev->info, 0, NULL,
+	                sizeof(dev->uuid), dev->uuid))
+	{
+		free(dev);
+		return 0;
+	}
+
+	if (!dev->info.exists ||
+	    strncmp(dev->uuid, UUID_PREFIX, strlen(UUID_PREFIX)))
+	{
+		free(dev);
+		return 0;
+	}
+
 	dev->next = *devs;
 	*devs = dev;
 
@@ -117,7 +133,7 @@ static int get_snapshot_era(struct devices *devs, const char *uuid,
 
 	cow = NULL;
 
-	for (curr = devs; curr->next != NULL; curr = curr->next)
+	for (curr = devs; curr != NULL; curr = curr->next)
 	{
 		if (!strcmp(curr->uuid, cow_dmuuid))
 		{
@@ -176,7 +192,6 @@ static int get_snapshot_era(struct devices *devs, const char *uuid,
 
 int era_status(int argc, char **argv)
 {
-	size_t prefix_len = strlen(UUID_PREFIX);
 	struct devices *devs, *curr;
 	char *device;
 	int found = 0;
@@ -206,19 +221,11 @@ int era_status(int argc, char **argv)
 		return 0;
 	}
 
-	for (curr = devs; curr->next != NULL; curr = curr->next)
+	for (curr = devs; curr != NULL; curr = curr->next)
 	{
-		struct era_dm_info info;
 		uint64_t start, length;
 
-		if (era_dm_info(curr->name, NULL, &info, 0, NULL,
-		                sizeof(curr->uuid), curr->uuid))
-			goto out;
-
-		if (!info.exists || info.suspended || info.target_count != 1)
-			continue;
-
-		if (strncmp(curr->uuid, UUID_PREFIX, prefix_len))
+		if (curr->info.suspended || curr->info.target_count != 1)
 			continue;
 
 		if (era_dm_first_table(curr->name, NULL, &start, &length,
@@ -226,17 +233,19 @@ int era_status(int argc, char **argv)
 		                       sizeof(curr->table), curr->table))
 			goto out;
 
+		curr->sectors = length;
+
 		if (strcmp(curr->target, TARGET_ERA) &&
 		    strcmp(curr->target, TARGET_SNAPSHOT))
 			continue;
 
-		if (era_dm_first_status(curr->name, NULL, &start,
-		                        &curr->sectors, 0, NULL,
-		                        sizeof(curr->status), curr->status))
+		if (era_dm_first_status(curr->name, NULL, &start, &length,
+		                        0, NULL, sizeof(curr->status),
+		                        curr->status))
 			goto out;
 	}
 
-	for (curr = devs; curr->next != NULL; curr = curr->next)
+	for (curr = devs; curr != NULL; curr = curr->next)
 	{
 		char meta_snap[16];
 		unsigned meta_chunk, chunk, era;
@@ -290,7 +299,7 @@ int era_status(int argc, char **argv)
 		strcat(orig_dmuuid, "-orig");
 		orig = NULL;
 
-		for (c = devs; c->next != NULL; c = c->next)
+		for (c = devs; c != NULL; c = c->next)
 		{
 			if (!strcmp(c->uuid, orig_dmuuid))
 			{
@@ -306,7 +315,7 @@ int era_status(int argc, char **argv)
 		           &real_major, &real_minor) != 2)
 			continue;
 
-		for (c = devs; c->next != NULL; c = c->next)
+		for (c = devs; c != NULL; c = c->next)
 		{
 			unsigned snap_chunk, era;
 			unsigned long long used;
