@@ -111,7 +111,6 @@ static int get_snapshot_era(struct devices *devs, const char *uuid,
 	char cow_dmuuid[DM_UUID_LEN];
 	unsigned long long offset;
 	unsigned major, minor;
-	uint64_t sectors;
 	int fd;
 
 	snprintf(cow_dmuuid, sizeof(cow_dmuuid), "ERA-SNAP-%s-cow", uuid);
@@ -145,7 +144,7 @@ static int get_snapshot_era(struct devices *devs, const char *uuid,
 		return -1;
 	}
 
-	fd = blkopen2(major, minor, 0, &sectors);
+	fd = blkopen2(major, minor, 0, NULL);
 	if (fd == -1)
 		return -1;
 
