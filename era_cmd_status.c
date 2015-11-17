@@ -1,6 +1,6 @@
 /*
  * This file is released under the GPL.
-  */
+ */
 
 #define _GNU_SOURCE
 
@@ -102,15 +102,97 @@ static int devlist_cb(void *arg, const char *name)
 	return 0;
 }
 
+static int get_snapshot_era(struct devices *devs, const char *uuid,
+                            unsigned *era)
+{
+	struct md *sn;
+	struct devices *curr, *cow;
+	struct era_snapshot_superblock *ssb;
+	char cow_dmuuid[DM_UUID_LEN];
+	unsigned long long offset;
+	unsigned major, minor;
+	uint64_t sectors;
+	int fd;
+
+	snprintf(cow_dmuuid, sizeof(cow_dmuuid), "ERA-SNAP-%s-cow", uuid);
+
+	cow = NULL;
+
+	for (curr = devs; curr->next != NULL; curr = curr->next)
+	{
+		if (!strcmp(curr->uuid, cow_dmuuid))
+		{
+			cow = curr;
+			break;
+		}
+	}
+
+	if (cow == NULL)
+	{
+		error(0, "can't find cow-device for uuid %s", uuid);
+		return -1;
+	}
+
+	if (strcmp(cow->target, TARGET_LINEAR))
+	{
+		error(0, "unexpected cow target type: %s", cow->target);
+		return -1;
+	}
+
+	if (sscanf(cow->table, "%u:%u %llu", &major, &minor, &offset) != 3)
+	{
+		error(0, "can't parse cow table: %s", cow->table);
+		return -1;
+	}
+
+	fd = blkopen2(major, minor, 0, &sectors);
+	if (fd == -1)
+		return -1;
+
+	sn = md_open(NULL, fd);
+	if (sn == NULL)
+		return -1;
+
+	ssb = md_block(sn, 0, 0, SNAP_SUPERBLOCK_CSUM_XOR);
+	if (ssb == NULL)
+	{
+		md_close(sn);
+		return -1;
+	}
+
+	if (strcmp(uuid, uuid2str(ssb->uuid)))
+	{
+		error(0, "wrong superblock uuid: expected %s, "
+		      "but got %s", uuid, uuid2str(ssb->uuid));
+		md_close(sn);
+		return -1;
+	}
+
+	*era = le32toh(ssb->snapshot_era);
+
+	md_close(sn);
+
+	return 0;
+}
+
 int era_status(int argc, char **argv)
 {
 	size_t prefix_len = strlen(UUID_PREFIX);
 	struct devices *devs, *curr;
+	char *device;
+	int found = 0;
 	int rc = -1;
 
-	if (argc != 0)
+	switch (argc)
 	{
-		error(0, "unknown argument: %s", argv[0]);
+	case 0:
+		device = NULL;
+		break;
+	case 1:
+		device = argv[0];
+		break;
+	default:
+		error(0, "unknown argument: %s", argv[1]);
 		usage(stderr, 1);
 	}
 
@@ -171,6 +253,9 @@ int era_status(int argc, char **argv)
 		if (strcmp(curr->target, TARGET_ERA))
 			continue;
 
+		if (device != NULL && strcmp(curr->name, device))
+			continue;
+
 		if (sscanf(curr->status, "%u %llu/%llu %u %s", &meta_chunk,
 		           &meta_used, &meta_total, &era, meta_snap) != 5)
 		{
@@ -184,6 +269,8 @@ int era_status(int argc, char **argv)
 			error(0, "unsupported era device: %s\n", curr->name);
 			continue;
 		}
+
+		found++;
 
 		printf("name:          %s\n", curr->name);
 		printf("current era:   %u\n", era);
@@ -222,7 +309,7 @@ int era_status(int argc, char **argv)
 
 		for (c = devs; c->next != NULL; c = c->next)
 		{
-			unsigned snap_chunk;
+			unsigned snap_chunk, era;
 			unsigned long long used;
 			unsigned long long total;
 			unsigned long long meta;
@@ -261,8 +348,18 @@ int era_status(int argc, char **argv)
 			printf("  used:        %s (%s)\n",
 			       hsize(used << SECTOR_SHIFT),
 			       percent(used, total));
+
+			if (get_snapshot_era(devs, uuid, &era) == 0)
+				printf("  era:         %u\n", era);
+
 			printf("\n");
 		}
+	}
+
+	if (device != NULL && !found)
+	{
+		error(0, "device not found: %s", device);
+		goto out;
 	}
 
 	rc = 0;

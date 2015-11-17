@@ -59,7 +59,7 @@ void usage(FILE *out, int code)
 	"         create <name> <metadata-dev> <data-dev> [chunk-size]\n"
 	"         open <name> <metadata-dev> <data-dev>\n"
 	"         close <name>\n"
-	"         status <name>\n\n"
+	"         status [name]\n\n"
 	"         takesnap <name> <snapshot-dev>\n"
 	"         dropsnap <snapshot-dev>\n\n"
 	"         dumpsb <metadata-dev>\n"
