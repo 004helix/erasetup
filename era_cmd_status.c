@@ -25,6 +25,59 @@ struct devices {
 	struct devices *next;
 };
 
+static char *hsize(uint64_t s)
+{
+	static char buffer[32];
+	static const char *units[] = {
+		"KiB",
+		"MiB",
+		"GiB",
+		"TiB",
+		"PiB",
+		"EiB",
+		NULL
+	};
+
+	int i;
+	uint64_t k = s / 1024;
+	double d = (double) k;
+
+	for (i = 0; (d > 1024.0) && units[i]; i++)
+		d /= 1024.0;
+
+	snprintf(buffer, sizeof(buffer), "%.02f %s", d, units[i]);
+
+	return buffer;
+}
+
+static char *percent(uint64_t val, uint64_t total)
+{
+	static char buffer[32];
+
+	if (total == 0)
+	{
+		strcpy(buffer, "?%");
+		return buffer;
+	}
+
+	if (val >= total)
+	{
+		strcpy(buffer, "100%");
+		return buffer;
+	}
+
+	double p = (double) val;
+	p /= (double) total;
+	p *= 100;
+
+	if (p < 10.0)
+		sprintf(buffer, "%.02f%%", p);
+	else
+		sprintf(buffer, "%.01f%%", p);
+
+	return buffer;
+}
+
 static int devlist_cb(void *arg, const char *name)
 {
 	struct devices **devs = arg;
@@ -41,11 +94,8 @@ static int devlist_cb(void *arg, const char *name)
 		return -1;
 	}
 
+	memset(dev, 0, sizeof(*dev));
 	strcpy(dev->name, name);
-	dev->uuid[0] = '\0';
-	dev->target[0] = '\0';
-	dev->status[0] = '\0';
-	dev->table[0] = '\0';
 	dev->next = *devs;
 	*devs = dev;
 
@@ -108,9 +158,15 @@ int era_status(int argc, char **argv)
 	for (curr = devs; curr->next != NULL; curr = curr->next)
 	{
 		char meta_snap[16];
-		unsigned meta_chunk, era;
+		unsigned meta_chunk, chunk, era;
 		unsigned long long meta_used;
 		unsigned long long meta_total;
+		char orig_dmuuid[DM_UUID_LEN];
+		struct devices *c, *orig;
+		unsigned real_major;
+		unsigned real_minor;
+		unsigned maj1, min1;
+		unsigned maj2, min2;
 
 		if (strcmp(curr->target, TARGET_ERA))
 			continue;
@@ -122,14 +178,91 @@ int era_status(int argc, char **argv)
 			continue;
 		}
 
-		printf("--- device -----------------------------------------"
-		       "-------------\n");
+		if (sscanf(curr->table, "%u:%u %u:%u %u", &maj1, &min1,
+		           &maj2, &min2, &chunk) != 5)
+		{
+			error(0, "unsupported era device: %s\n", curr->name);
+			continue;
+		}
 
-		printv(0, "name:          %s\n", curr->name);
-		printv(0, "uuid:          %s\n", curr->uuid);
-		printv(0, "current era:   %u\n", era);
-		printv(0, "device size:   %llu\n",
-		       (long long unsigned)(curr->sectors << SECTOR_SHIFT));
+		printf("name:          %s\n", curr->name);
+		printf("current era:   %u\n", era);
+		printf("device size:   %s\n",
+		       hsize(curr->sectors << SECTOR_SHIFT));
+		printf("chunk size:    %s\n",
+		       hsize(chunk << SECTOR_SHIFT));
+		printf("metadata size: %s\n",
+		       hsize(meta_total * MD_BLOCK_SIZE));
+		printf("metadata used: %s (%s)\n",
+		       hsize(meta_used * MD_BLOCK_SIZE),
+		       percent(meta_used, meta_total));
+		printf("uuid:          %s\n", curr->uuid);
+
+		printf("\n");
+
+		strcpy(orig_dmuuid, curr->uuid);
+		strcat(orig_dmuuid, "-orig");
+		orig = NULL;
+
+		for (c = devs; c->next != NULL; c = c->next)
+		{
+			if (!strcmp(c->uuid, orig_dmuuid))
+			{
+				orig = c;
+				break;
+			}
+		}
+
+		if (orig == NULL || strcmp(orig->target, TARGET_ORIGIN))
+			continue;
+
+		if (sscanf(orig->table, "%u:%u",
+		           &real_major, &real_minor) != 2)
+			continue;
+
+		for (c = devs; c->next != NULL; c = c->next)
+		{
+			unsigned snap_chunk;
+			unsigned long long used;
+			unsigned long long total;
+			unsigned long long meta;
+			char persistent[4];
+			char *uuid;
+
+			if (strcmp(c->target, TARGET_SNAPSHOT))
+				continue;
+
+			if (strncmp("era-snap-", c->name, 9))
+				continue;
+
+			uuid = c->name + 9;
+
+			if (sscanf(c->table, "%u:%u %u:%u %s %u",
+			           &maj1, &min1, &maj2, &min2,
+			           persistent, &snap_chunk) != 6)
+				continue;
+
+			if (real_major != maj1 || real_minor != min1)
+				continue;
+
+			printf("  snapshot:    %s\n", uuid);
+
+			if (sscanf(c->status, "%llu/%llu %llu",
+			           &used, &total, &meta) != 3)
+			{
+				printf("  status:      %s\n\n", c->status);
+				continue;
+			}
+			else
+				printf("  status:      Active\n");
+
+			printf("  size:        %s\n",
+			       hsize(total << SECTOR_SHIFT));
+			printf("  used:        %s (%s)\n",
+			       hsize(used << SECTOR_SHIFT),
+			       percent(used, total));
+			printf("\n");
+		}
 	}
 
 	rc = 0;
