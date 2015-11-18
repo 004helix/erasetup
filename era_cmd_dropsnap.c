@@ -17,6 +17,7 @@
 #include "era_cmd_dropsnap.h"
 
 struct devices {
+	uint64_t size;
 	char name[DM_NAME_LEN];
 	char uuid[DM_UUID_LEN];
 	char table[256];
@@ -67,6 +68,7 @@ static int devices_cb(void *arg, const char *name)
 		return -1;
 	}
 
+	dev->size = length;
 	dev->next = *devs;
 	*devs = dev;
 
@@ -75,7 +77,6 @@ static int devices_cb(void *arg, const char *name)
 
 int era_dropsnap(int argc, char **argv)
 {
-	char *path;
 	struct md *sn;
 	struct devices *devs, *curr;
 	struct devices *orig, *snap, *cow;
@@ -83,7 +84,6 @@ int era_dropsnap(int argc, char **argv)
 	unsigned real_major, real_minor;
 	char dmuuid[DM_UUID_LEN];
 	char uuid[UUID_LEN];
-	unsigned era;
 	int cnt = 0;
 	int rc = -1;
 
@@ -99,13 +99,11 @@ int era_dropsnap(int argc, char **argv)
 		usage(stderr, 1);
 	}
 
-	path = argv[0];
-
 	/*
 	 * open snapshot device
 	 */
 
-	sn = md_open(path, 0);
+	sn = md_open(argv[0], 0);
 	if (sn == NULL)
 		return -1;
 
@@ -121,7 +119,6 @@ int era_dropsnap(int argc, char **argv)
 	}
 
 	memcpy(uuid, ssb->uuid, UUID_LEN);
-	era = le32toh(ssb->snapshot_era);
 
 	md_close(sn);
 
@@ -132,16 +129,16 @@ int era_dropsnap(int argc, char **argv)
 	devs = NULL;
 
 	if (era_dm_list(devices_cb, &devs))
-		return -1;
+		goto out;
 
 	if (devs == NULL)
 	{
 		error(0, "no devices found");
-		goto out;
+		return -1;
 	}
 
 	/*
-	 * search snapshot device
+	 * search snapshot
 	 */
 
 	snap = NULL;
@@ -150,6 +147,9 @@ int era_dropsnap(int argc, char **argv)
 
 	for (curr = devs; curr != NULL; curr = curr->next)
 	{
+		if (strcmp(curr->target, TARGET_SNAPSHOT))
+			continue;
+
 		if (!strcmp(curr->uuid, dmuuid))
 		{
 			snap = curr;
@@ -159,13 +159,13 @@ int era_dropsnap(int argc, char **argv)
 
 	if (snap == NULL)
 	{
-		error(0, "can't find device era-snap-%s", uuid2str(uuid));
+		error(0, "can't find era-snap-%s", uuid2str(uuid));
 		goto out;
 	}
 
-	if (strcmp(snap->target, TARGET_SNAPSHOT))
+	if (snap->info.open_count > 0)
 	{
-		error(0, "unsupported target type: %s", snap->target);
+		error(0, "snapshot is in use");
 		goto out;
 	}
 
@@ -176,6 +176,61 @@ int era_dropsnap(int argc, char **argv)
 	if (sscanf(snap->table, "%u:%u", &real_major, &real_minor) != 2)
 	{
 		error(0, "can't parse snapshot table: %s", snap->table);
+		goto out;
+	}
+
+	/*
+	 * search cow
+	 */
+
+	cow = NULL;
+
+	snprintf(dmuuid, sizeof(dmuuid), "ERA-SNAP-%s-cow", uuid2str(uuid));
+
+	for (curr = devs; curr != NULL; curr = curr->next)
+	{
+		if (strcmp(curr->target, TARGET_LINEAR))
+			continue;
+
+		if (!strcmp(curr->uuid, dmuuid))
+		{
+			cow = curr;
+			break;
+		}
+	}
+
+	if (cow == NULL)
+	{
+		error(0, "can't find era-snap-%s-cow", uuid2str(uuid));
+		goto out;
+	}
+
+	/*
+	 * search origin
+	 */
+
+	orig = NULL;
+
+	for (curr = devs; curr != NULL; curr = curr->next)
+	{
+		unsigned maj, min;
+
+		if (strcmp(curr->target, TARGET_ORIGIN))
+			continue;
+
+		if (sscanf(curr->table, "%u:%u", &maj, &min) != 2)
+			continue;
+
+		if (maj == real_major && min == real_minor)
+		{
+			orig = curr;
+			break;
+		}
+	}
+
+	if (orig == NULL)
+	{
+		error(0, "can't find origin device");
 		goto out;
 	}
 
@@ -197,7 +252,54 @@ int era_dropsnap(int argc, char **argv)
 			cnt++;
 	}
 
-	printf("%d\n", cnt);
+	/*
+	 * suspend origin
+	 */
+
+	if (era_dm_suspend(orig->name))
+		goto out;
+
+	/*
+	 * remove snapshot
+	 */
+
+	if (era_dm_remove(snap->name))
+	{
+		era_dm_resume(orig->name);
+		goto out;
+	}
+
+	/*
+	 * replace snapshot-origin with linear
+	 */
+
+	if (cnt == 1)
+	{
+		char table[64];
+
+		sprintf(table, "%u:%u 0", real_major, real_minor);
+
+		if (era_dm_load(orig->name, 0, orig->size,
+		                TARGET_LINEAR, table, NULL))
+		{
+			era_dm_resume(orig->name);
+			goto out;
+		}
+	}
+
+	/*
+	 * resume origin
+	 */
+
+	if (era_dm_resume(orig->name))
+		goto out;
+
+	/*
+	 * remove cow
+	 */
+
+	if (era_dm_remove(cow->name))
+		goto out;
 
 	rc = 0;
 out:
