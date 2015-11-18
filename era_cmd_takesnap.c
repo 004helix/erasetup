@@ -327,6 +327,14 @@ int era_takesnap(int argc, char **argv)
 	                       sizeof(orig->table), orig->table))
 		goto out_snap;
 
+	if (era->size != orig->size)
+	{
+		error(0, "unexpected origin size: expected %llu, but got %llu",
+		      (long long unsigned)era->size,
+		      (long long unsigned)orig->size);
+		goto out_snap;
+	}
+
 	printv(1, "origin: %s %s\n", orig->target, orig->table);
 
 	if (!strcmp(orig->target, TARGET_LINEAR))
@@ -340,7 +348,7 @@ int era_takesnap(int argc, char **argv)
 			goto out_snap;
 		}
 
-		if (zero != 0)
+		if (zero)
 		{
 			error(0, "invalid origin table: %s", orig->table);
 			goto out_snap;
@@ -477,7 +485,7 @@ int era_takesnap(int argc, char **argv)
 	 * copy bitmap for current era
 	 */
 
-	printv(1, "snapshot: copy bitmap for era %u\n", current_era);
+	printv(1, "era: get bitmap for era %u\n", current_era);
 
 	bitmap = era_snapshot_getbitmap(md, current_era, 0, nr_blocks);
 	if (!bitmap)
