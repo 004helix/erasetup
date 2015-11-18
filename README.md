@@ -34,6 +34,14 @@
 	# mkfs.ext4 -q /dev/mapper/home
 	# mount /dev/mapper/home /home
 
+**Close device example**
+
+	# erasetup close home
+
+**Open device example**
+
+	# erasetup open home /dev/vg/meta /dev/vg/data
+
 **Take snapshot example:**
 
 	# lvcreate -L 1G -n snap vg
@@ -105,11 +113,3 @@
 	  <range begin="55297" end="65534" era="0"/>
 	  <block block="65535" era="1"/>
 	</snapshot>
-
-**Close device example**
-
-	# erasetup close home
-
-**Open device example**
-
-	# erasetup open home /dev/vg/meta /dev/vg/data
