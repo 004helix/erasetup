@@ -83,14 +83,14 @@ static int writesets_cb(void *arg, unsigned size, void *keys, void *values)
 		return 0;
 
 	ws = malloc(sizeof(*ws) * size);
-	if (ws == NULL)
+	if (!ws)
 	{
 		error(ENOMEM, NULL);
 		return -1;
 	}
 
 	eras = malloc(sizeof(*eras) * size);
-	if (eras == NULL)
+	if (!eras)
 	{
 		error(ENOMEM, NULL);
 		free(ws);
@@ -164,14 +164,14 @@ static int era_spacemap_write(struct md *md, unsigned long *bitmap,
 	 */
 
 	ref_count = malloc(MD_BLOCK_SIZE);
-	if (ref_count == NULL)
+	if (!ref_count)
 	{
 		error(ENOMEM, NULL);
 		return -1;
 	}
 
 	index = malloc(MD_BLOCK_SIZE);
-	if (index == NULL)
+	if (!index)
 	{
 		error(ENOMEM, NULL);
 		free(ref_count);
@@ -382,7 +382,7 @@ int era_spacemap_rebuild(struct md *md)
 	 */
 
 	bitmap = malloc(sizeof(long) * LONGS(md->blocks));
-	if (bitmap == NULL)
+	if (!bitmap)
 	{
 		error(ENOMEM, NULL);
 		return -1;
@@ -395,7 +395,7 @@ int era_spacemap_rebuild(struct md *md)
 	 */
 
 	sb = md_block(md, MD_CACHED, 0, SUPERBLOCK_CSUM_XOR);
-	if (sb == NULL)
+	if (!sb)
 		goto out;
 
 	nr_blocks = le32toh(sb->nr_blocks);
@@ -494,7 +494,7 @@ int era_spacemap_rebuild(struct md *md)
 	 */
 
 	sb = md_block(md, 0, 0, SUPERBLOCK_CSUM_XOR);
-	if (sb == NULL)
+	if (!sb)
 		goto out;
 
 	// drop metadata snapshot (not supported for now)

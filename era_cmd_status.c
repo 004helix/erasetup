@@ -89,7 +89,7 @@ static int devices_cb(void *arg, const char *name)
 		return 0;
 
 	dev = malloc(sizeof(*dev));
-	if (dev == NULL)
+	if (!dev)
 	{
 		error(ENOMEM, NULL);
 		return -1;
@@ -133,7 +133,7 @@ static int get_snapshot_era(struct devices *devs, const char *uuid,
 
 	cow = NULL;
 
-	for (curr = devs; curr != NULL; curr = curr->next)
+	for (curr = devs; curr; curr = curr->next)
 	{
 		if (!strcmp(curr->uuid, cow_dmuuid))
 		{
@@ -142,7 +142,7 @@ static int get_snapshot_era(struct devices *devs, const char *uuid,
 		}
 	}
 
-	if (cow == NULL)
+	if (!cow)
 	{
 		error(0, "can't find cow-device for uuid %s", uuid);
 		return -1;
@@ -165,11 +165,11 @@ static int get_snapshot_era(struct devices *devs, const char *uuid,
 		return -1;
 
 	sn = md_open(NULL, fd);
-	if (sn == NULL)
+	if (!sn)
 		return -1;
 
 	ssb = md_block(sn, 0, 0, SNAP_SUPERBLOCK_CSUM_XOR);
-	if (ssb == NULL)
+	if (!ssb)
 	{
 		md_close(sn);
 		return -1;
@@ -215,13 +215,13 @@ int era_status(int argc, char **argv)
 	if (era_dm_list(devices_cb, &devs))
 		return -1;
 
-	if (devs == NULL)
+	if (!devs)
 	{
 		printv(1, "no devices found\n");
 		return 0;
 	}
 
-	for (curr = devs; curr != NULL; curr = curr->next)
+	for (curr = devs; curr; curr = curr->next)
 	{
 		uint64_t start, length;
 
@@ -245,7 +245,7 @@ int era_status(int argc, char **argv)
 			goto out;
 	}
 
-	for (curr = devs; curr != NULL; curr = curr->next)
+	for (curr = devs; curr; curr = curr->next)
 	{
 		char meta_snap[16];
 		unsigned meta_chunk, chunk, era;
@@ -261,7 +261,7 @@ int era_status(int argc, char **argv)
 		if (strcmp(curr->target, TARGET_ERA))
 			continue;
 
-		if (device != NULL && strcmp(curr->name, device))
+		if (device && strcmp(curr->name, device))
 			continue;
 
 		if (sscanf(curr->status, "%u %llu/%llu %u %s", &meta_chunk,
@@ -299,7 +299,7 @@ int era_status(int argc, char **argv)
 		strcat(orig_dmuuid, "-orig");
 		orig = NULL;
 
-		for (c = devs; c != NULL; c = c->next)
+		for (c = devs; c; c = c->next)
 		{
 			if (!strcmp(c->uuid, orig_dmuuid))
 			{
@@ -308,14 +308,14 @@ int era_status(int argc, char **argv)
 			}
 		}
 
-		if (orig == NULL || strcmp(orig->target, TARGET_ORIGIN))
+		if (!orig || strcmp(orig->target, TARGET_ORIGIN))
 			continue;
 
 		if (sscanf(orig->table, "%u:%u",
 		           &real_major, &real_minor) != 2)
 			continue;
 
-		for (c = devs; c != NULL; c = c->next)
+		for (c = devs; c; c = c->next)
 		{
 			unsigned snap_chunk, era;
 			unsigned long long used;
@@ -364,7 +364,7 @@ int era_status(int argc, char **argv)
 		}
 	}
 
-	if (device != NULL && !found)
+	if (device && !found)
 	{
 		error(0, "device not found: %s", device);
 		goto out;
@@ -373,7 +373,7 @@ int era_status(int argc, char **argv)
 	rc = 0;
 out:
 	curr = devs;
-	while (curr != NULL)
+	while (curr)
 	{
 		void *p = curr;
 		curr = curr->next;

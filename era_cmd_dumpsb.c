@@ -296,14 +296,14 @@ static int writesets_cb(void *arg, unsigned size, void *keys, void *values)
 		return 0;
 
 	ws = malloc(sizeof(*ws) * size);
-	if (ws == NULL)
+	if (!ws)
 	{
 		error(ENOMEM, NULL);
 		return -1;
 	}
 
 	eras = malloc(sizeof(*eras) * size);
-	if (eras == NULL)
+	if (!eras)
 	{
 		error(ENOMEM, NULL);
 		free(ws);
@@ -385,11 +385,11 @@ int era_dumpsb(int argc, char **argv)
 	}
 
 	md = md_open(argv[0], 0);
-	if (md == NULL)
+	if (!md)
 		return -1;
 
 	sb = md_block(md, MD_CACHED, 0, SUPERBLOCK_CSUM_XOR);
-	if (sb == NULL || era_sb_check(sb))
+	if (!sb || era_sb_check(sb))
 		return -1;
 
 	printf("--- superblock ---------------------------------------"

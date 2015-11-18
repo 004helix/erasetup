@@ -26,7 +26,7 @@ struct md *md_open(const char *device, int rw)
 	struct md *md;
 
 	md = malloc(sizeof(struct md));
-	if (md == NULL)
+	if (!md)
 	{
 		error(ENOMEM, NULL);
 		return NULL;
@@ -64,7 +64,7 @@ struct md *md_open(const char *device, int rw)
 
 	md->offset_allocated = 16;
 	md->offset = malloc(md->offset_allocated * sizeof(unsigned));
-	if (md->offset == NULL)
+	if (!md->offset)
 	{
 		error(ENOMEM, NULL);
 		munmap(md->cache, MD_BLOCK_SIZE * md->cache_allocated);
@@ -169,7 +169,7 @@ void *md_block(struct md *md, int flags, uint64_t nr, uint32_t xor)
 
 		new_offset = realloc(md->offset, sizeof(unsigned) * new_alloc);
 
-		if (new_offset == NULL)
+		if (!new_offset)
 		{
 			error(ENOMEM, NULL);
 			return NULL;

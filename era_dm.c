@@ -41,8 +41,7 @@ static int _dm_create(int task, int wait,
 	if (uuid && !dm_task_set_uuid(dmt, uuid))
 		goto out;
 
-	if (target != NULL &&
-	    !dm_task_add_target(dmt, start, length, target, table))
+	if (target && !dm_task_add_target(dmt, start, length, target, table))
 		goto out;
 
 	if (wait && !dm_task_set_cookie(dmt, &cookie, 0))
@@ -189,7 +188,7 @@ int era_dm_info(const char *name,
 		size_t dm_name_len;
 
 		dm_name = dm_task_get_name(dmt);
-		if (dm_name == NULL)
+		if (!dm_name)
 			goto out;
 
 		dm_name_len = strlen(dm_name);
@@ -208,7 +207,7 @@ int era_dm_info(const char *name,
 		size_t dm_uuid_len;
 
 		dm_uuid = dm_task_get_uuid(dmt);
-		if (dm_uuid == NULL)
+		if (!dm_uuid)
 			goto out;
 
 		dm_uuid_len = strlen(dm_uuid);
@@ -264,10 +263,10 @@ static int _first_status(int task,
 
 	(void)dm_get_next_target(dmt, NULL, &a, &b, &tgt, &prm);
 
-	if (start != NULL)
+	if (start)
 		*start = a;
 
-	if (length != NULL)
+	if (length)
 		*length = b;
 
 	if (target_size > 0 && target_ptr)

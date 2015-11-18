@@ -99,7 +99,7 @@ static int clear_metadata(struct md *md, const char *device)
 	int valid = 0;
 
 	sb = md_block(md, MD_NOCRC, 0, 0);
-	if (sb == NULL)
+	if (!sb)
 		return -1;
 
 	if (le32toh(sb->magic) == SUPERBLOCK_MAGIC)
@@ -194,7 +194,7 @@ int era_create(int argc, char **argv)
 	data = argv[2];
 
 	orig = malloc(16 + strlen(data));
-	if (orig == NULL)
+	if (!orig)
 	{
 		error(ENOMEM, NULL);
 		return -1;
@@ -217,7 +217,7 @@ int era_create(int argc, char **argv)
 	 */
 
 	md = md_open(meta, 1);
-	if (md == NULL)
+	if (!md)
 		goto out;
 
 	meta_major = md->major;
@@ -341,7 +341,7 @@ int era_open(int argc, char **argv)
 	data = argv[2];
 
 	orig = malloc(16 + strlen(data));
-	if (orig == NULL)
+	if (!orig)
 	{
 		error(ENOMEM, NULL);
 		return -1;
@@ -364,11 +364,11 @@ int era_open(int argc, char **argv)
 	 */
 
 	md = md_open(meta, 1);
-	if (md == NULL)
+	if (!md)
 		goto out;
 
 	sb = md_block(md, MD_CACHED, 0, SUPERBLOCK_CSUM_XOR);
-	if (sb == NULL || era_sb_check(sb))
+	if (!sb || era_sb_check(sb))
 	{
 		md_close(md);
 		goto out;

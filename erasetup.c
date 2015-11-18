@@ -73,7 +73,7 @@ void error(int err, const char *fmt, ...)
 	if (bufsize == 0)
 	{
 		buffer = malloc(512);
-		if (buffer == NULL)
+		if (!buffer)
 			return;
 		bufsize = 512;
 	}
@@ -91,16 +91,16 @@ void error(int err, const char *fmt, ...)
 			break;
 
 		p = realloc(buffer, bufsize << 1);
-		if (p == NULL)
+		if (p)
+		{
+			bufsize <<= 1;
+			buffer = p;
+		}
+		else
 		{
 			free(buffer);
 			bufsize = 0;
 			return;
-		}
-		else
-		{
-			bufsize <<= 1;
-			buffer = p;
 		}
 	}
 

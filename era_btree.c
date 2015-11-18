@@ -31,7 +31,7 @@ static int walk_array_node(struct md *md, uint64_t nr, enum leaf_type type,
 	int rc = 0;
 
 	node = md_block(md, 0, nr, ARRAY_CSUM_XOR);
-	if (node == NULL)
+	if (!node)
 		return -1;
 
 	blocknr = le64toh(node->header.blocknr);
@@ -83,10 +83,10 @@ static int walk_array_node(struct md *md, uint64_t nr, enum leaf_type type,
 		return -1;
 	}
 
-	if (blockcb != NULL && blockcb(blockarg, nr, node))
+	if (blockcb && blockcb(blockarg, nr, node))
 		return -1;
 
-	if (nr_entries && datacb != NULL)
+	if (nr_entries && datacb)
 		rc = datacb(dataarg, nr_entries, NULL, node->values);
 
 	return rc ? -1 : 0;
@@ -107,7 +107,7 @@ static int walk_btree_node(struct md *md, uint64_t nr, enum leaf_type type,
 	int rc = 0;
 
 	node = md_block(md, MD_CACHED, nr, BTREE_CSUM_XOR);
-	if (node == NULL)
+	if (!node)
 		return -1;
 
 	blocknr = le64toh(node->header.blocknr);
@@ -181,7 +181,7 @@ static int walk_btree_node(struct md *md, uint64_t nr, enum leaf_type type,
 		return -1;
 	}
 
-	if (blockcb != NULL && blockcb(blockarg, nr, node))
+	if (blockcb && blockcb(blockarg, nr, node))
 		return -1;
 
 	if (flags & INTERNAL_NODE || type == LEAF_ARRAY || type == LEAF_BITSET)
@@ -196,7 +196,7 @@ static int walk_btree_node(struct md *md, uint64_t nr, enum leaf_type type,
 			 * each iteration due to md cache resize.
 			 */
 			node = md_block(md, MD_CACHED, nr, BTREE_CSUM_XOR);
-			if (node == NULL)
+			if (!node)
 				return -1;
 
 			values = (uint64_t *)&node->keys[max_entries];
@@ -221,7 +221,7 @@ static int walk_btree_node(struct md *md, uint64_t nr, enum leaf_type type,
 	 * only LEAF_WRITESET type can be here
 	 */
 
-	if (nr_entries && datacb != NULL)
+	if (nr_entries && datacb)
 		rc = datacb(dataarg, nr_entries, node->keys,
 		            &node->keys[max_entries]);
 
@@ -238,7 +238,7 @@ int era_array_walk(struct md *md, uint64_t root,
 	                    blockcb, blockarg) == -1)
 		return -1;
 
-	if (datacb != NULL && datacb(dataarg, 0, NULL, NULL))
+	if (datacb && datacb(dataarg, 0, NULL, NULL))
 		return -1;
 
 	return 0;
@@ -254,7 +254,7 @@ int era_bitset_walk(struct md *md, uint64_t root,
 	                    blockcb, blockarg) == -1)
 		return -1;
 
-	if (datacb != NULL && datacb(dataarg, 0, NULL, NULL))
+	if (datacb && datacb(dataarg, 0, NULL, NULL))
 		return -1;
 
 	return 0;
@@ -270,7 +270,7 @@ int era_writesets_walk(struct md *md, uint64_t root,
 	                    blockcb, blockarg) == -1)
 		return -1;
 
-	if (datacb != NULL && datacb(dataarg, 0, NULL, NULL))
+	if (datacb && datacb(dataarg, 0, NULL, NULL))
 		return -1;
 
 	return 0;

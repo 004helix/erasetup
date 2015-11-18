@@ -36,7 +36,7 @@ static int devices_cb(void *arg, const char *name)
 		return 0;
 
 	dev = malloc(sizeof(*dev));
-	if (dev == NULL)
+	if (!dev)
 	{
 		error(ENOMEM, NULL);
 		return -1;
@@ -104,7 +104,7 @@ int era_dropsnap(int argc, char **argv)
 	 */
 
 	sn = md_open(argv[0], 0);
-	if (sn == NULL)
+	if (!sn)
 		return -1;
 
 	/*
@@ -112,7 +112,7 @@ int era_dropsnap(int argc, char **argv)
 	 */
 
 	ssb = md_block(sn, 0, 0, SNAP_SUPERBLOCK_CSUM_XOR);
-	if (ssb == NULL)
+	if (!ssb)
 	{
 		md_close(sn);
 		return -1;
@@ -131,7 +131,7 @@ int era_dropsnap(int argc, char **argv)
 	if (era_dm_list(devices_cb, &devs))
 		goto out;
 
-	if (devs == NULL)
+	if (!devs)
 	{
 		error(0, "no devices found");
 		return -1;
@@ -145,7 +145,7 @@ int era_dropsnap(int argc, char **argv)
 
 	snprintf(dmuuid, sizeof(dmuuid), "ERA-SNAP-%s", uuid2str(uuid));
 
-	for (curr = devs; curr != NULL; curr = curr->next)
+	for (curr = devs; curr; curr = curr->next)
 	{
 		if (strcmp(curr->target, TARGET_SNAPSHOT))
 			continue;
@@ -157,7 +157,7 @@ int era_dropsnap(int argc, char **argv)
 		}
 	}
 
-	if (snap == NULL)
+	if (!snap)
 	{
 		error(0, "can't find era-snap-%s", uuid2str(uuid));
 		goto out;
@@ -187,7 +187,7 @@ int era_dropsnap(int argc, char **argv)
 
 	snprintf(dmuuid, sizeof(dmuuid), "ERA-SNAP-%s-cow", uuid2str(uuid));
 
-	for (curr = devs; curr != NULL; curr = curr->next)
+	for (curr = devs; curr; curr = curr->next)
 	{
 		if (strcmp(curr->target, TARGET_LINEAR))
 			continue;
@@ -199,7 +199,7 @@ int era_dropsnap(int argc, char **argv)
 		}
 	}
 
-	if (cow == NULL)
+	if (!cow)
 	{
 		error(0, "can't find era-snap-%s-cow", uuid2str(uuid));
 		goto out;
@@ -211,7 +211,7 @@ int era_dropsnap(int argc, char **argv)
 
 	orig = NULL;
 
-	for (curr = devs; curr != NULL; curr = curr->next)
+	for (curr = devs; curr; curr = curr->next)
 	{
 		unsigned maj, min;
 
@@ -228,7 +228,7 @@ int era_dropsnap(int argc, char **argv)
 		}
 	}
 
-	if (orig == NULL)
+	if (!orig)
 	{
 		error(0, "can't find origin device");
 		goto out;
@@ -238,7 +238,7 @@ int era_dropsnap(int argc, char **argv)
 	 * count snapshots
 	 */
 
-	for (curr = devs; curr != NULL; curr = curr->next)
+	for (curr = devs; curr; curr = curr->next)
 	{
 		unsigned maj, min;
 
@@ -304,7 +304,7 @@ int era_dropsnap(int argc, char **argv)
 	rc = 0;
 out:
 	curr = devs;
-	while (curr != NULL)
+	while (curr)
 	{
 		void *p = curr;
 		curr = curr->next;

@@ -41,7 +41,7 @@ static int findandopen(int dirfd, int rw, unsigned major, unsigned minor)
 	int fd;
 
 	dir = fdopendir(dirfd);
-	if (dir == NULL)
+	if (!dir)
 	{
 		error(errno, "can't open directory");
 		close(dirfd);
@@ -60,7 +60,7 @@ static int findandopen(int dirfd, int rw, unsigned major, unsigned minor)
 			return -1;
 		}
 
-		if (d == NULL)
+		if (!d)
 			break;
 
 		name = d->d_name;
@@ -141,7 +141,7 @@ int blkopen(const char *device, int rw,
 	uint64_t size;
 	int fd;
 
-	if (device == NULL)
+	if (!device)
 		fd = rw;
 	else
 	{
@@ -228,7 +228,7 @@ sysfs:
 	buffer[size] = '\0';
 
 	line = strstr(buffer, "DEVNAME=");
-	if (line == NULL)
+	if (!line)
 		goto devfs;
 
 	line += 8;

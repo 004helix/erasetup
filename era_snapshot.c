@@ -99,7 +99,7 @@ static int writesets_cb(void *arg, unsigned size, void *keys, void *values)
 	offset = state->total;
 	ws = realloc(state->ws, sizeof(*ws) * (offset + size));
 
-	if (ws == NULL)
+	if (!ws)
 	{
 		error(ENOMEM, NULL);
 		return -1;
@@ -124,7 +124,7 @@ static int writesets_cb(void *arg, unsigned size, void *keys, void *values)
 
 		ws[i].bitmap = malloc(sizeof(long) * LONGS(bits));
 
-		if (ws[i].bitmap == NULL)
+		if (!ws[i].bitmap)
 		{
 			error(ENOMEM, NULL);
 			return -1;
@@ -237,7 +237,7 @@ int era_snapshot_copy(struct md *md, struct md *sn,
 	int rc = -1;
 
 	sb = md_block(md, MD_CACHED, superblock, SUPERBLOCK_CSUM_XOR);
-	if (sb == NULL || era_sb_check(sb))
+	if (!sb || era_sb_check(sb))
 		return -1;
 
 	era_array_root = le64toh(sb->era_array_root);
@@ -294,12 +294,12 @@ out:
 	 * free writesets memory
 	 */
 
-	if (wst.ws != NULL && wst.total > 0)
+	if (wst.ws && wst.total > 0)
 	{
 		unsigned i;
 		for (i = 0; i < wst.total; i++)
 		{
-			if (wst.ws[i].bitmap != NULL)
+			if (wst.ws[i].bitmap)
 				free(wst.ws[i].bitmap);
 		}
 		free(wst.ws);
@@ -342,7 +342,7 @@ unsigned long *era_snapshot_getbitmap(struct md *md, unsigned era,
 	unsigned long *bitmap;
 
 	sb = md_block(md, MD_CACHED, superblock, SUPERBLOCK_CSUM_XOR);
-	if (sb == NULL || era_sb_check(sb))
+	if (!sb || era_sb_check(sb))
 		return NULL;
 
 	writeset_tree_root = le64toh(sb->writeset_tree_root);
@@ -373,7 +373,7 @@ unsigned long *era_snapshot_getbitmap(struct md *md, unsigned era,
 	}
 
 	bitmap = malloc(sizeof(long) * LONGS(entries));
-	if (bitmap == NULL)
+	if (!bitmap)
 	{
 		error(ENOMEM, NULL);
 		return NULL;
@@ -438,11 +438,11 @@ int era_snapshot_digest(struct md *sn, unsigned era,
 			if (!((bitmap[offset] >> bit) & 1))
 				continue;
 
-			if (node == NULL)
+			if (!node)
 			{
 				node = md_block(sn, 0, i + 1,
 				                SNAP_ARRAY_CSUM_XOR);
-				if (node == NULL)
+				if (!node)
 					return -1;
 
 				if (le64toh(node->blocknr) != i + 1)
@@ -456,7 +456,7 @@ int era_snapshot_digest(struct md *sn, unsigned era,
 			node->era[j - from] = htole32(era);
 		}
 
-		if (node != NULL)
+		if (node)
 		{
 			csum = crc_update(crc_init(), &node->flags,
 			                  MD_BLOCK_SIZE - sizeof(node->csum));
