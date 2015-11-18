@@ -1,6 +1,6 @@
 **erasetup** is utility used to setup volumes and manage snapshots for dm-era
 
-# Usage:
+**Usage:**
 
 	erasetup [-h|--help] [-v|--verbose] [-f|--force]
 	         <command> [command options]
@@ -15,7 +15,7 @@
 	
 	         dumpsb <metadata-dev>
 
-# Create device example:
+**Create device example:**
 
 	# lvcreate -L 32M -n meta vg
 	  Logical volume "meta" created.
@@ -34,7 +34,7 @@
 	# mkfs.ext4 -q /dev/mapper/home
 	# mount /dev/mapper/home /home
 
-# Take snapshot example:
+**Take snapshot example:**
 
 	# lvcreate -L 1G -n snap vg
 	  Logical volume "snap" created.
@@ -58,7 +58,7 @@
 	  used:        100.11 MiB (9.78%)
 	  era:         2
 
-# Drop snapshot example
+**Drop snapshot example**
 
 	# erasetup dropsnap /dev/vg/snap
 	# erasetup status
@@ -70,7 +70,7 @@
 	metadata used: 300.00 KiB (0.92%)
 	uuid:          ERA-253-2
 
-# Close device example
+**Close device example**
 
 	# erasetup close home
 
