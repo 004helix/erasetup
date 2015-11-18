@@ -135,10 +135,10 @@ char *uuid2str(const void *uuid)
 // check era superblock
 int era_sb_check(struct era_superblock *sb)
 {
-	uint32_t magic;
+	uint64_t magic;
 	uint32_t version;
 
-	magic = le32toh(sb->magic);
+	magic = le64toh(sb->magic);
 	if (magic != SUPERBLOCK_MAGIC)
 	{
 		error(0, "invalid superblock magic");
