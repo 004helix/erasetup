@@ -18,10 +18,10 @@
 #include "era_dm.h"
 
 #include "era_cmd_basic.h"
-#include "era_cmd_dumpsb.h"
 #include "era_cmd_status.h"
 #include "era_cmd_takesnap.h"
 #include "era_cmd_dropsnap.h"
+#include "era_cmd_dumpmeta.h"
 
 // empty metadata block
 void *empty_block;
@@ -51,7 +51,7 @@ void usage(FILE *out, int code)
 	"         status [name]\n\n"
 	"         takesnap <name> <snapshot-dev>\n"
 	"         dropsnap <snapshot-dev>\n\n"
-	"         dumpsb <metadata-dev>\n"
+	"         dumpmeta <metadata-dev>\n"
 	"\n");
 	exit(code);
 }
@@ -204,9 +204,6 @@ int main(int argc, char **argv)
 	argv = &argv[optind];
 	argc -= optind;
 
-	if (!strcmp(cmd, "dumpsb"))
-		return era_dumpsb(argc, argv) ? 1 : 0;
-
 	if (!strcmp(cmd, "create"))
 		return era_create(argc, argv) ? 1 : 0;
 
@@ -224,6 +221,9 @@ int main(int argc, char **argv)
 
 	if (!strcmp(cmd, "dropsnap"))
 		return era_dropsnap(argc, argv) ? 1 : 0;
+
+	if (!strcmp(cmd, "dumpmeta"))
+		return era_dumpmeta(argc, argv) ? 1 : 0;
 
 	error(0, "unknown command: %s", cmd);
 	usage(stderr, 1);

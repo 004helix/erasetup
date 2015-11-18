@@ -15,6 +15,7 @@
 #include "era.h"
 #include "era_md.h"
 #include "era_btree.h"
+#include "era_cmd_dumpmeta.h"
 
 /*
  * callbacks states
@@ -359,10 +360,10 @@ static int dump_writeset(struct md *md, uint64_t root, unsigned max)
 }
 
 /*
- * dumpsb command
+ * dumpmeta command
  */
 
-int era_dumpsb(int argc, char **argv)
+int era_dumpmeta(int argc, char **argv)
 {
 	struct md *md;
 	struct era_superblock *sb;

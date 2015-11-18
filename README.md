@@ -13,7 +13,7 @@
 	         takesnap <name> <snapshot-dev>
 	         dropsnap <snapshot-dev>
 	
-	         dumpsb <metadata-dev>
+	         dumpmeta <metadata-dev>
 
 **Create device example:**
 
@@ -74,6 +74,6 @@
 
 	# erasetup close home
 
-# Open device example
+**Open device example**
 
 	# erasetup open home /dev/vg/meta /dev/vg/data
