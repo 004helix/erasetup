@@ -2,37 +2,37 @@
 
 ### Usage:
 
- erasetup [-h|--help] [-v|--verbose] [-f|--force]
-          <command> [command options]
- 
-          create <name> <metadata-dev> <data-dev> [chunk-size]
-          open <name> <metadata-dev> <data-dev>
-          close <name>
-          status [name]
- 
-          takesnap <name> <snapshot-dev>
-          dropsnap <snapshot-dev>
- 
-          dumpsb <metadata-dev>
+	erasetup [-h|--help] [-v|--verbose] [-f|--force]
+	         <command> [command options]
+	
+	         create <name> <metadata-dev> <data-dev> [chunk-size]
+	         open <name> <metadata-dev> <data-dev>
+	         close <name>
+	         status [name]
+	
+	         takesnap <name> <snapshot-dev>
+	         dropsnap <snapshot-dev>
+	
+	         dumpsb <metadata-dev>
 
 ### Create device example:
 
- # lvcreate -L 32M -n meta vg
-   Logical volume "meta" created.
- # lvcreate -L 4G -n data vg
-   Logical volume "data" created.
- # erasetup create home /dev/vg/meta /dev/vg/data
- # erasetup status
- name:          home
- current era:   1
- device size:   4.00 GiB
- chunk size:    64.00 KiB
- metadata size: 32.00 MiB
- metadata used: 300.00 KiB (0.92%)
- uuid:          ERA-253-2
- 
- # mkfs.ext4 -q /dev/mapper/home
- # mount /dev/mapper/home /home
+	# lvcreate -L 32M -n meta vg
+	  Logical volume "meta" created.
+	# lvcreate -L 4G -n data vg
+	  Logical volume "data" created.
+	# erasetup create home /dev/vg/meta /dev/vg/data
+	# erasetup status
+	name:          home
+	current era:   1
+	device size:   4.00 GiB
+	chunk size:    64.00 KiB
+	metadata size: 32.00 MiB
+	metadata used: 300.00 KiB (0.92%)
+	uuid:          ERA-253-2
+	
+	# mkfs.ext4 -q /dev/mapper/home
+	# mount /dev/mapper/home /home
 
 ### Take snapshot example:
 
