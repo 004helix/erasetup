@@ -20,9 +20,9 @@
 #include "crc32c.h"
 #include "era.h"
 #include "era_md.h"
-#include "era_sm.h"
 #include "era_dm.h"
 #include "era_blk.h"
+#include "era_spacemap.h"
 #include "era_cmd_basic.h"
 
 static int parse_chunk(const char *str)

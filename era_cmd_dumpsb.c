@@ -14,7 +14,6 @@
 
 #include "era.h"
 #include "era_md.h"
-#include "era_sm.h"
 #include "era_btree.h"
 
 /*

@@ -2,8 +2,8 @@
  * This file is released under the GPL.
  */
 
-#ifndef __ERA_SM_H__
-#define __ERA_SM_H__
+#ifndef __ERA_SPACEMAP_H__
+#define __ERA_SPACEMAP_H__
 
 #define INDEX_CSUM_XOR 160478
 #define BITMAP_CSUM_XOR 240779
