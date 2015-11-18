@@ -1,6 +1,6 @@
 **erasetup** is utility used to setup volumes and manage snapshots for dm-era
 
-### Usage:
+#### Usage:
 
 	erasetup [-h|--help] [-v|--verbose] [-f|--force]
 	         <command> [command options]
@@ -15,7 +15,7 @@
 	
 	         dumpsb <metadata-dev>
 
-### Create device example:
+#### Create device example:
 
 	# lvcreate -L 32M -n meta vg
 	  Logical volume "meta" created.
@@ -34,46 +34,46 @@
 	# mkfs.ext4 -q /dev/mapper/home
 	# mount /dev/mapper/home /home
 
-### Take snapshot example:
+#### Take snapshot example:
 
-# lvcreate -L 1G -n snap vg
-  Logical volume "snap" created.
-# erasetup takesnap home /dev/vg/snap
-# dd if=/dev/zero of=/home/test bs=1M count=100
-100+0 records in
-100+0 records out
-104857600 bytes (105 MB) copied, 0.0889242 s, 1.2 GB/s
-# erasetup status
-name:          home
-current era:   3
-device size:   4.00 GiB
-chunk size:    64.00 KiB
-metadata size: 32.00 MiB
-metadata used: 300.00 KiB (0.92%)
-uuid:          ERA-253-2
+	# lvcreate -L 1G -n snap vg
+	  Logical volume "snap" created.
+	# erasetup takesnap home /dev/vg/snap
+	# dd if=/dev/zero of=/home/test bs=1M count=100
+	100+0 records in
+	100+0 records out
+	104857600 bytes (105 MB) copied, 0.0889242 s, 1.2 GB/s
+	# erasetup status
+	name:          home
+	current era:   3
+	device size:   4.00 GiB
+	chunk size:    64.00 KiB
+	metadata size: 32.00 MiB
+	metadata used: 300.00 KiB (0.92%)
+	uuid:          ERA-253-2
+	
+	  snapshot:    45c62c3e66-8b2d-880d-ef53-48138498b3
+	  status:      Active
+	  size:        1023.74 MiB
+	  used:        100.11 MiB (9.78%)
+	  era:         2
 
-  snapshot:    45c62c3e66-8b2d-880d-ef53-48138498b3
-  status:      Active
-  size:        1023.74 MiB
-  used:        100.11 MiB (9.78%)
-  era:         2
+#### Drop snapshot example
 
-### Drop snapshot example
+	# erasetup dropsnap /dev/vg/snap
+	# erasetup status
+	name:          home
+	current era:   3
+	device size:   4.00 GiB
+	chunk size:    64.00 KiB
+	metadata size: 32.00 MiB
+	metadata used: 300.00 KiB (0.92%)
+	uuid:          ERA-253-2
 
-# erasetup dropsnap /dev/vg/snap
-# erasetup status
-name:          home
-current era:   3
-device size:   4.00 GiB
-chunk size:    64.00 KiB
-metadata size: 32.00 MiB
-metadata used: 300.00 KiB (0.92%)
-uuid:          ERA-253-2
+#### Close device example
 
-### Close device example
+	# erasetup close home
 
-# erasetup close home
+#### Open device example
 
-### Open device example
-
-# erasetup open home/dev/vg/meta /dev/vg/data
+	# erasetup open home/dev/vg/meta /dev/vg/data
