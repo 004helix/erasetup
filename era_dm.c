@@ -234,6 +234,7 @@ static int _first_status(int task,
                          size_t target_size, char *target_ptr,
                          size_t params_size, char *params_ptr)
 {
+	uint64_t a, b;
 	struct dm_task *dmt;
 	struct dm_info dmi;
 	char *tgt, *prm;
@@ -261,7 +262,13 @@ static int _first_status(int task,
 		goto out;
 	}
 
-	(void)dm_get_next_target(dmt, NULL, start, length, &tgt, &prm);
+	(void)dm_get_next_target(dmt, NULL, &a, &b, &tgt, &prm);
+
+	if (start != NULL)
+		*start = a;
+
+	if (length != NULL)
+		*length = b;
 
 	if (target_size > 0 && target_ptr)
 	{
