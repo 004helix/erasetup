@@ -79,7 +79,7 @@ static char *percent(uint64_t val, uint64_t total)
 	return buffer;
 }
 
-static int devlist_cb(void *arg, const char *name)
+static int devices_cb(void *arg, const char *name)
 {
 	struct devices **devs = arg;
 	struct devices *dev;
@@ -212,7 +212,7 @@ int era_status(int argc, char **argv)
 
 	devs = NULL;
 
-	if (era_dm_list(devlist_cb, &devs))
+	if (era_dm_list(devices_cb, &devs))
 		return -1;
 
 	if (devs == NULL)
@@ -373,7 +373,7 @@ int era_status(int argc, char **argv)
 	rc = 0;
 out:
 	curr = devs;
-	while (curr)
+	while (curr != NULL)
 	{
 		void *p = curr;
 		curr = curr->next;
