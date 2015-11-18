@@ -35,7 +35,7 @@ static void *get_snapshot_uuid(struct md *sn, const char *device)
 	{
 		uint32_t csum;
 
-		csum = crc_update(0xffffffff, &ssb->flags,
+		csum = crc_update(crc_init(), &ssb->flags,
 		                  MD_BLOCK_SIZE - sizeof(uint32_t));
 		csum ^= SNAP_SUPERBLOCK_CSUM_XOR;
 
@@ -553,7 +553,7 @@ int era_takesnap(int argc, char **argv)
 	ssb->nr_blocks = htole32(nr_blocks);
 	ssb->snapshot_era = htole32(era);
 
-	csum = crc_update(0xffffffff, &ssb->flags,
+	csum = crc_update(crc_init(), &ssb->flags,
 	                  MD_BLOCK_SIZE - sizeof(uint32_t));
 	ssb->csum = htole32(csum ^ SNAP_SUPERBLOCK_CSUM_XOR);
 

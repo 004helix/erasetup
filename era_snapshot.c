@@ -154,7 +154,7 @@ static int snapshot_write(struct md *sn, uint64_t nr,
 	node->blocknr = htole64(nr);
 	node->flags = 0;
 
-	csum = crc_update(0xffffffff, &node->flags,
+	csum = crc_update(crc_init(), &node->flags,
 	                  MD_BLOCK_SIZE - sizeof(node->csum));
 	node->csum = htole32(csum ^ SNAP_ARRAY_CSUM_XOR);
 
@@ -458,7 +458,7 @@ int era_snapshot_digest(struct md *sn, unsigned era,
 
 		if (node != NULL)
 		{
-			csum = crc_update(0xffffffff, &node->flags,
+			csum = crc_update(crc_init(), &node->flags,
 			                  MD_BLOCK_SIZE - sizeof(node->csum));
 			node->csum = htole32(csum ^ SNAP_ARRAY_CSUM_XOR);
 

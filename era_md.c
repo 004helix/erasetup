@@ -103,7 +103,7 @@ void *md_block(struct md *md, int flags, uint64_t nr, uint32_t xor)
 		// check checksum
 		if (!(flags & MD_NOCRC))
 		{
-			uint32_t csum = crc_update(0xffffffff, node->data,
+			uint32_t csum = crc_update(crc_init(), node->data,
 			                           sizeof(node->data)) ^ xor;
 			if (csum != le32toh(node->csum))
 			{
@@ -148,7 +148,7 @@ void *md_block(struct md *md, int flags, uint64_t nr, uint32_t xor)
 	// check checksum
 	if (!(flags & MD_NOCRC))
 	{
-		uint32_t csum = crc_update(0xffffffff, node->data,
+		uint32_t csum = crc_update(crc_init(), node->data,
 		                           sizeof(node->data)) ^ xor;
 		if (csum != le32toh(node->csum))
 		{

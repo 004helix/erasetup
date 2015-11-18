@@ -287,7 +287,7 @@ static int era_spacemap_write(struct md *md, unsigned long *bitmap,
 
 		hdr->blocknr = htole64(root);
 
-		csum = crc_update(0xffffffff, &hdr->not_used,
+		csum = crc_update(crc_init(), &hdr->not_used,
 		                  MD_BLOCK_SIZE - sizeof(hdr->csum));
 		hdr->csum = htole32(csum ^ BITMAP_CSUM_XOR);
 
@@ -302,7 +302,7 @@ static int era_spacemap_write(struct md *md, unsigned long *bitmap,
 	 * write ref count block
 	 */
 
-	csum = crc_update(0xffffffff, &ref_count->header.flags,
+	csum = crc_update(crc_init(), &ref_count->header.flags,
 	                  MD_BLOCK_SIZE - sizeof(ref_count->header.csum));
 	ref_count->header.csum = htole32(csum ^ BTREE_CSUM_XOR);
 
@@ -314,7 +314,7 @@ static int era_spacemap_write(struct md *md, unsigned long *bitmap,
 	 * write index block
 	 */
 
-	csum = crc_update(0xffffffff, &index->padding,
+	csum = crc_update(crc_init(), &index->padding,
 	                  MD_BLOCK_SIZE - sizeof(index->csum));
 	index->csum = htole32(csum ^ INDEX_CSUM_XOR);
 
@@ -505,7 +505,7 @@ int era_spacemap_rebuild(struct md *md)
 	memcpy(sb->metadata_space_map_root, &smr, sizeof(smr));
 
 	// calculate new checksum
-	csum = crc_update(0xffffffff, &sb->flags,
+	csum = crc_update(crc_init(), &sb->flags,
 	                  MD_BLOCK_SIZE - sizeof(sb->csum));
 	sb->csum = htole32(csum ^ SUPERBLOCK_CSUM_XOR);
 

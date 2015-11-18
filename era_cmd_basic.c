@@ -106,7 +106,7 @@ static int clear_metadata(struct md *md, const char *device)
 	{
 		uint32_t csum;
 
-		csum = crc_update(0xffffffff, &sb->flags,
+		csum = crc_update(crc_init(), &sb->flags,
 		                  MD_BLOCK_SIZE - sizeof(uint32_t));
 		csum ^= SUPERBLOCK_CSUM_XOR;
 
