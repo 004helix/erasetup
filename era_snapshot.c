@@ -17,6 +17,28 @@
 #include "era_btree.h"
 #include "era_snapshot.h"
 
+int era_ssb_check(struct era_snapshot_superblock *ssb)
+{
+	uint64_t magic;
+	uint32_t version;
+
+	magic = le64toh(ssb->magic);
+	if (magic != SNAP_SUPERBLOCK_MAGIC)
+	{
+		error(0, "invalid snapshot superblock magic");
+		return -1;
+	}
+
+	version = le32toh(ssb->version);
+	if (version != SNAP_VERSION)
+	{
+		error(0, "unsupported snapshot version: %d", version);
+		return -1;
+	}
+
+	return 0;
+}
+
 struct writeset {
 	unsigned era;
 	uint64_t root;
@@ -469,3 +491,4 @@ int era_snapshot_digest(struct md *sn, unsigned era,
 
 	return 0;
 }
+

@@ -112,7 +112,7 @@ int era_dropsnap(int argc, char **argv)
 	 */
 
 	ssb = md_block(sn, 0, 0, SNAP_SUPERBLOCK_CSUM_XOR);
-	if (!ssb)
+	if (!ssb || era_ssb_check(ssb))
 	{
 		md_close(sn);
 		return -1;

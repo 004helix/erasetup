@@ -18,6 +18,7 @@ struct era_snapshot_superblock {
 	__le64 magic;
 	__le32 version;
 
+	__le64 era_size;
 	__le32 data_block_size;
 	__le32 metadata_block_size;
 	__le32 nr_blocks;
@@ -37,6 +38,8 @@ struct era_snapshot_node {
 
 #define ERAS_PER_BLOCK \
 	((MD_BLOCK_SIZE - sizeof(struct era_snapshot_node)) / sizeof(uint32_t))
+
+int era_ssb_check(struct era_snapshot_superblock *ssb);
 
 int era_snapshot_copy(struct md *md, struct md *sn,
                       uint64_t superblock, unsigned entries);

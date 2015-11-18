@@ -1,7 +1,7 @@
 CC = gcc
 LD = gcc
-CFLAGS = -Wall -g
-#CFLAGS = -Wall -Werror
+#CFLAGS = -Wall -g
+CFLAGS = -Wall -Werror
 LDFLAGS = -ldevmapper
 
 EXE = erasetup

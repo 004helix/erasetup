@@ -572,6 +572,7 @@ int era_takesnap(int argc, char **argv)
 	ssb->magic = htole64(SNAP_SUPERBLOCK_MAGIC);
 	ssb->version = htole32(1);
 
+	ssb->era_size = htole64(era->size);
 	ssb->data_block_size = htole32(chunk);
 	ssb->metadata_block_size = htole32(MD_BLOCK_SIZE >> SECTOR_SHIFT);
 	ssb->nr_blocks = htole32(nr_blocks);

@@ -21,6 +21,7 @@
 #include "era_cmd_status.h"
 #include "era_cmd_takesnap.h"
 #include "era_cmd_dropsnap.h"
+#include "era_cmd_dumpsnap.h"
 #include "era_cmd_dumpmeta.h"
 
 // empty metadata block
@@ -48,10 +49,11 @@ void usage(FILE *out, int code)
 	"         create <name> <metadata-dev> <data-dev> [chunk-size]\n"
 	"         open <name> <metadata-dev> <data-dev>\n"
 	"         close <name>\n"
-	"         status [name]\n\n"
+	"         status [name]\n"
+	"         dumpmeta <metadata-dev>\n\n"
 	"         takesnap <name> <snapshot-dev>\n"
-	"         dropsnap <snapshot-dev>\n\n"
-	"         dumpmeta <metadata-dev>\n"
+	"         dropsnap <snapshot-dev>\n"
+	"         dumpsnap <metadata-dev>\n"
 	"\n");
 	exit(code);
 }
@@ -221,6 +223,9 @@ int main(int argc, char **argv)
 
 	if (!strcmp(cmd, "dropsnap"))
 		return era_dropsnap(argc, argv) ? 1 : 0;
+
+	if (!strcmp(cmd, "dumpsnap"))
+		return era_dumpsnap(argc, argv) ? 1 : 0;
 
 	if (!strcmp(cmd, "dumpmeta"))
 		return era_dumpmeta(argc, argv) ? 1 : 0;
